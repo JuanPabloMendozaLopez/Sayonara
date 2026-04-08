@@ -1,11 +1,41 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <title>Sayonara - Reproductor de música</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&family=Ubuntu:ital,wght@0,300;0,400;0,500;0,700;1,300;1,400;1,500;1,700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles/styles.css"/>
 </head>
 <body>
-    
+
+    <main>
+        
+        <div class="song-card">
+            <img class="album-portrait" src="assets/default.jpeg" alt="Portada del album">
+            <div class="song-description">
+                <h2>Sin reproducir</h2>
+                <p>Artista desconocido</p>
+            </div>
+            <div class="track-bar">
+                <p>0:00</p>
+                <input type="range" value="0">
+                <p>0:00</p>
+            </div>
+            
+            <div class="buttons-bar">
+                <button class="btn-back"><img src="assets/back.png" alt="Hacia atras"></button>
+                <button class="btn-playpause"><img id="icon-playpause" src="assets/play.png" alt="Reproducir/Pausar"></button>
+                <button class="btn-next"><img src="assets/next.png" alt="Hacia delante"></button>
+            </div>
+
+        </div>
+
+    </main>
+
+    <script src="scripts/app.js"></script>
+
 </body>
 </html>

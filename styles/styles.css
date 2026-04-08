@@ -1,0 +1,178 @@
+* {
+
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+
+    font-family: 'Outfit';
+    color: white;
+
+}
+
+:root {
+
+    --principal-color: #323232;
+    --secondary-color: #141414;
+    --card-color: #383838;
+    --spacing: 16px;
+
+}
+
+main {
+
+    width: 100%;
+    height: 100vh;
+    background: linear-gradient(to bottom, var(--principal-color), var(--secondary-color));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+}
+
+.song-card {
+
+
+    width: 20rem;
+    background-color: var(--card-color);
+    border-radius: 20px;
+    box-shadow: 0px 16px 20px #000000;
+    transition: transform 0.3s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: var(--spacing);
+    gap: 14px;
+    
+}
+
+.song-card:hover {
+
+    transform: translateY(-20px);
+    
+}
+
+.song-description {
+
+    width: 100%;
+    text-align: left;
+
+}
+
+.song-description > p {
+
+    font-size: 15px;
+
+}
+
+.album-portrait {
+
+    width: 100%;
+    height: 16rem;
+    object-fit: cover;
+    border-radius: 20px;
+
+}
+
+.track-bar {
+
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: var(--spacing);
+
+}
+
+input[type=range] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 8px;
+    border-radius: 4px;
+    background: #ddd;
+    cursor: pointer;
+}
+/* TRACK (barra) */
+input[type=range]::-webkit-slider-runnable-track {
+    height: 8px;
+    border-radius: 4px;
+    background: transparent;
+}
+
+input[type=range]::-moz-range-track {
+    height: 8px;
+    background: white;
+    border-radius: 4px;
+}
+
+/* PROGRESS (solo Firefox) */
+input[type=range]::-moz-range-progress {
+    background: white;
+    height: 8px;
+    border-radius: 4px;
+}
+
+/* THUMB (bolita) */
+input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 20px;
+    width: 20px;
+    background: white;
+    border-radius: 50%;
+    margin-top: -6px;
+    transition: transform 0.2s ease;
+}
+
+input[type=range]::-moz-range-thumb {
+    height: 20px;
+    width: 20px;
+    background: white;
+    border: none;
+    border-radius: 50%;
+    transition: transform 0.2s ease;
+}
+
+/* EFECTOS */
+input[type=range]:hover::-webkit-slider-thumb {
+    transform: scale(1.2);
+}
+
+input[type=range]:hover::-moz-range-thumb {
+    transform: scale(1.2);
+}
+
+.buttons-bar {
+    width: 100%;
+    display: flex;
+    justify-content: center; /* 🔥 cambia esto */
+    gap: 16px;               /* 🔥 separación real */
+}
+
+.buttons-bar > button {
+    width: 4rem;
+    height: 4rem;
+    background: transparent;
+    border: none;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    cursor: pointer;
+
+    transition: transform 0.1s ease, filter 0.1s ease;
+}
+
+.buttons-bar > button:active {
+    transform: scale(0.85);      /* 🔥 se “hunde” */
+    filter: brightness(0.7);     /* 🔥 se oscurece */
+}
+
+.buttons-bar > button > img {
+
+    width: 40px;
+}
