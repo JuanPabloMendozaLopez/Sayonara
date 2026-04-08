@@ -15,14 +15,16 @@
         
         <div class="song-card">
             <img class="album-portrait" src="assets/default.jpeg" alt="Portada del album">
+            <input type="file" accept="audio/*" style="display: none;"> 
+            <audio id="audio"></audio>
             <div class="song-description">
-                <h2>Sin reproducir</h2>
-                <p>Artista desconocido</p>
+                <h2 id="song-name">Sin reproducir</h2>
+                <p id="artist-name">Artista desconocido</p>
             </div>
             <div class="track-bar">
-                <p>0:00</p>
-                <input type="range" value="0">
-                <p>0:00</p>
+                <p id="start-time">0:00</p>
+                <input type="range" value="0" min="0" max="100">
+                <p id="end-time">0:00</p>
             </div>
             
             <div class="buttons-bar">
@@ -35,6 +37,7 @@
 
     </main>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js"></script>
     <script src="scripts/app.js"></script>
 
 </body>
