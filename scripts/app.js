@@ -139,15 +139,21 @@ btnPlayPause.addEventListener("click", () => {
 });
 
 const navigationButtons = document.querySelectorAll(".navigation-button");
+const sections = document.querySelectorAll("section");
 
 navigationButtons.forEach(button => {
     button.addEventListener("click", () => {
+
+        sections.forEach(section => {
+            section.style.display = "none";
+        })
         
         navigationButtons.forEach(btn => {
             btn.classList.remove("active");
         })
-        button.classList.add("active")
-
+        button.classList.add("active");
+        const section = document.getElementById(button.dataset.section);
+        section.style.display = "block"
     });
 });
 
