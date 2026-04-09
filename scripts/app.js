@@ -137,3 +137,18 @@ function playPause() {
 btnPlayPause.addEventListener("click", () => {
     playPause();
 });
+
+const navigationButtons = document.querySelectorAll(".navigation-button");
+
+navigationButtons.forEach(button => {
+    button.addEventListener("click", () => {
+        
+        navigationButtons.forEach(btn => {
+            btn.classList.remove("active");
+        })
+        button.classList.add("active")
+
+    });
+});
+
+navigationButtons[0].click();
