@@ -43,6 +43,7 @@ const footer = document.querySelector("footer");
 const footerSongName = document.getElementById("footer-song-name");
 const footerArtistName = document.getElementById("footer-artist-name");
 const footerAlbumPortrait = footer.querySelector("img");
+const footerIconPlayPause = document.getElementById("footer-icon-playpause");
 
 let currentFile = null;
 let currentTitle = "";
@@ -60,8 +61,10 @@ function updatePlayPauseButton() {
 function updatePlayPauseButtonWithState(isPlaying) {
     if (isPlaying) {
         iconPlayPause.src = "assets/pause.png";
+        footerIconPlayPause.src = "assets/pause.png";
     } else {
         iconPlayPause.src = "assets/play.png";
+        footerIconPlayPause.src = "assets/play.png";
     }
 }
 
@@ -96,7 +99,7 @@ function updateSongListUIWithState(isPlaying) {
         const isCurrentSong = currentSongId === id;
         
         if (isCurrentSong) {
-            song_title.classList.add("selected");
+                song_title.classList.add("selected");
             if (isPlaying) {
                 console.log("Agregando clase active al item", id);
                 picture_content.classList.add("active");
@@ -161,7 +164,7 @@ function loadAndPlaySong(file) {
     jsmediatags.read(file, {
         onSuccess: function(tag) {
 
-            footer.style.display = "";
+            // footer.style.display = "";
 
             const { title, artist, picture } = tag.tags;
 
@@ -200,6 +203,16 @@ function loadAndPlaySong(file) {
             audio.play().catch(err => {
                 console.log("Error al reproducir:", err);
             });
+
+            // ✅ Usa el botón activo, no la sección
+            const activeButton = document.querySelector('.navigation-button.active');
+            const isInicio = activeButton?.dataset.section === "inicio";
+            
+            console.log("loadAndPlaySong - Section:", activeButton?.dataset.section);
+            console.log("loadAndPlaySong - isInicio:", isInicio);
+            console.log("loadAndPlaySong - Showing footer:", !isInicio);
+            
+            toggleFooter(!isInicio);
         },
         onError: function(error) {
             console.log(error);
@@ -248,6 +261,8 @@ function loadAndSaveSong() {
                 URL.revokeObjectURL(url);
                 tempAudio.src = '';
             });
+
+            setTimeout(adjustFooterWidth, 100);
         },
         onError: function(error) {
             console.log(error);
@@ -311,15 +326,22 @@ navigationButtons.forEach(button => {
         navigationButtons.forEach(btn => {
             btn.classList.remove("active");
         })
-        button.classList.add("active");
+        
+        button.classList.add("active");  // ← Primero cambias el botón activo
+        
         const section = document.getElementById(button.dataset.section);
         section.style.display = "flex"
 
-        if (button.dataset.section === "inicio" || currentSongId === null) {
-            footer.style.display = "none";
-        } else if (currentSongId !== null) {
-            footer.style.display = "";
-        }
+        // ✅ Ahora sí verifica con el botón correcto
+        const isInicio = button.dataset.section === "inicio";
+        const shouldShowFooter = !isInicio && currentSongId !== null;
+        
+        console.log("Section:", button.dataset.section);
+        console.log("currentSongId:", currentSongId);
+        console.log("shouldShowFooter:", shouldShowFooter);
+        
+        toggleFooter(shouldShowFooter);
+        setTimeout(adjustFooterWidth, 100); 
     });
 });
 
@@ -532,6 +554,18 @@ function clearSongs() {
     };
 }
 
+function toggleFooter(show) {
+    const footer = document.querySelector('footer');
+    
+    if (show) {
+        footer.style.display = 'flex';
+        document.body.classList.add('footer-visible');
+    } else {
+        footer.style.display = 'none';
+        document.body.classList.remove('footer-visible');
+    }
+}
+
 function clearSongCard() {
     // Primero desvincula los eventos
     audio.removeEventListener("timeupdate", timeUpdate);
@@ -560,4 +594,19 @@ function clearSongCard() {
     
     updatePlayPauseButton();
     updateSongListUI();
+
+    toggleFooter(false);
+}
+
+function adjustFooterWidth() {
+    const footer = document.querySelector('footer');
+    const main = document.querySelector('main');
+    
+    // Detecta si main tiene scrollbar
+    const hasScrollbar = main.scrollHeight > main.clientHeight;
+    
+    // Ancho del scrollbar (aproximadamente 15px en la mayoría de navegadores)
+    const scrollbarWidth = hasScrollbar ? 15 : 0;
+    
+    footer.style.width = `calc(100vw - 280px - 60px - ${scrollbarWidth}px)`;
 }

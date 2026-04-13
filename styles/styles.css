@@ -76,17 +76,11 @@ main, aside {
 
 section {
     width: 100%;
-    height: 100%;
+    min-height: 100%;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-}
-
-#guardados, #favoritos {
-    padding: 6rem;
-    justify-content: start;
-    align-items: start;
 }
 
 .guardados-header, .favoritos-header {
@@ -234,7 +228,7 @@ section {
     height: 16rem;
     object-fit: fill;
     border-radius: 20px;
-    
+
     -webkit-user-select: none;
     -ms-user-select: none;
     user-select: none;
@@ -523,17 +517,17 @@ input[type=range]:hover::-moz-range-thumb {
 }
 
 footer {
-    width: calc(100vw - 280px - 60px); /* viewport - aside - (gaps y paddings) */
+    width: calc(100% - 280px - 60px); /* ✅ Cambia 100vw por 100% */
     height: 8rem;
     position: fixed;
     bottom: 20px;
-    left: calc(280px + 40px); /* aside + gap + padding */
+    left: calc(280px + 40px);
     background-color: #212121;
     border-top: 1px solid #6f6f6f;
     border-radius: 0px 0px 20px 20px;
     z-index: 100;
     
-    display: flex;
+    display: none;
     align-items: center;
     padding: 0 2rem;
     gap: 1.5rem;
@@ -624,4 +618,19 @@ footer > img {
 .footer-btn-playpause:hover {
     background-color: #f0f0f0;
     transform: scale(1.1);
+}
+
+/* Base - sin footer */
+#guardados, #favoritos {
+    padding: 6rem;
+    padding-bottom: 0rem;
+    justify-content: start;
+    align-items: start;
+    transition: padding-bottom 0.3s ease;
+}
+
+/* Con footer visible */
+body.footer-visible #guardados,
+body.footer-visible #favoritos {
+    padding-bottom: 2rem;
 }
