@@ -68,85 +68,104 @@
                 </button>
             </nav>
         </aside>
-    <main>
 
-        <section id="inicio">
+        <main>
 
-            <div class="song-card">
+            <section id="inicio">
 
-                <img class="album-portrait" src="assets/default.jpeg" alt="Portada del album">
-                <input type="file" accept="audio/*" style="display: none;"> 
-                <audio id="audio"></audio>
-                <div class="song-description">
-                    <h2 id="song-name">Sin reproducir</h2>
-                    <p id="artist-name">Artista desconocido</p>
+                <div class="song-card">
+
+                    <img class="album-portrait" src="assets/default.jpeg" alt="Portada del album">
+                    <input type="file" accept="audio/*" style="display: none;"> 
+                    <audio id="audio"></audio>
+                    <div class="song-description">
+                        <h2 id="song-name">Sin reproducir</h2>
+                        <p id="artist-name">Artista desconocido</p>
+                    </div>
+                    <div class="track-bar">
+                        <p id="start-time">0:00</p>
+                        <input type="range" value="0" min="0" max="100">
+                        <p id="end-time">0:00</p>
+                    </div>
+                    
+                    <div class="buttons-bar">
+                        <button class="btn-back"><img src="assets/back.png" alt="Hacia atras"></button>
+                        <button class="btn-playpause"><img id="icon-playpause" src="assets/play.png" alt="Reproducir/Pausar"></button>
+                        <button class="btn-next"><img src="assets/next.png" alt="Hacia delante"></button>
+                    </div>
+
                 </div>
-                <div class="track-bar">
-                    <p id="start-time">0:00</p>
-                    <input type="range" value="0" min="0" max="100">
-                    <p id="end-time">0:00</p>
+
+            </section>
+
+            <section id="playlists">
+
+            </section>
+            
+            <section id="favoritos">
+
+                <div class="favoritos-header">
+
+                    <div class="favoritos-title">
+                        <h1>Tus Favoritos</h1>
+                    </div>
+
+                    <p>Tus canciones preferidas, todo en un solo lugar.</p>
+
                 </div>
-                
-                <div class="buttons-bar">
-                    <button class="btn-back"><img src="assets/back.png" alt="Hacia atras"></button>
-                    <button class="btn-playpause"><img id="icon-playpause" src="assets/play.png" alt="Reproducir/Pausar"></button>
-                    <button class="btn-next"><img src="assets/next.png" alt="Hacia delante"></button>
+
+                <div class="favorite-list">
+
                 </div>
 
-            </div>
+            </section>
 
-        </section>
+            <section id="guardados">
 
-        <section id="playlists">
+                <div class="guardados-header">
 
-        </section>
+                    <div class="guardados-title">
+                        <h1>Canciones Guardadas</h1>
+                        <button class="btn-base" id="btn-add">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus" aria-hidden="true"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg>
+                            Añadir Canción
+                        </button>
+                    </div>
+
+                    <p>Aquí puedes gestionar todas las canciones que has guardado en tu biblioteca.</p>
+
+                </div>
+
+                <div class="song-list">
+
+                </div>
+
+            </section>
+
+        </main>
         
-        <section id="favoritos">
-
-            <div class="favoritos-header">
-
-                <div class="favoritos-title">
-                    <h1>Tus Favoritos</h1>
-                </div>
-
-                <p>Tus canciones preferidas, todo en un solo lugar.</p>
-
+        <footer class="section-footer">
+            <img src="" alt="Album cover">
+            <div class="footer-description">
+                <h1 id="footer-song-name">Sin titulo</h1>
+                <p id="footer-artist-name">Sin artista</p>
             </div>
-
-            <div class="favorite-list">
-
-            </div>
-
-        </section>
-
-        <section id="guardados">
-
-            <div class="guardados-header">
-
-                <div class="guardados-title">
-                    <h1>Canciones Guardadas</h1>
-                    <button class="btn-base" id="btn-add">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus" aria-hidden="true"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg>
-                        Añadir Canción
+            <div class="footer-controls">
+                <div class="footer-controls">
+                    <button class="footer-btn-back">
+                        <img src="assets/back.png" alt="Anterior">
+                    </button>
+                    <button class="footer-btn-playpause">
+                        <img id="footer-icon-playpause" src="assets/play.png" alt="Reproducir/Pausar">
+                    </button>
+                    <button class="footer-btn-next">
+                        <img src="assets/next.png" alt="Siguiente">
                     </button>
                 </div>
-
-                <p>Aquí puedes gestionar todas las canciones que has guardado en tu biblioteca.</p>
-
             </div>
+        </footer>
 
-            <div class="song-list">
-
-            </div>
-
-        </section>
-
-    </main>
     </div>
-
-    <footer>
-
-    </footer>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js"></script>
     <script src="scripts/app.js"></script>

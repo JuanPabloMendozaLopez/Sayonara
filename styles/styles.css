@@ -46,8 +46,10 @@ body {
 main {
     flex: 1;
     border-radius: 20px;
-    overflow-y: auto; /* Solo el main tiene scroll */
+    overflow-y: auto;
     overflow-x: hidden;
+    padding-bottom: 7rem; /* Espacio para el footer */
+    position: relative; /* Para que el footer se posicione relativo al main */
 }
 
 aside {
@@ -232,7 +234,10 @@ section {
     height: 16rem;
     object-fit: fill;
     border-radius: 20px;
-    cursor: pointer;
+    
+    -webkit-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
 }
 
 .track-bar {
@@ -515,4 +520,108 @@ input[type=range]:hover::-moz-range-thumb {
 
 .song-item:hover .btn-delete:hover {
     color: var(--color-button-hover-alt);
+}
+
+footer {
+    width: calc(100vw - 280px - 60px); /* viewport - aside - (gaps y paddings) */
+    height: 8rem;
+    position: fixed;
+    bottom: 20px;
+    left: calc(280px + 40px); /* aside + gap + padding */
+    background-color: #212121;
+    border-top: 1px solid #6f6f6f;
+    border-radius: 0px 0px 20px 20px;
+    z-index: 100;
+    
+    display: flex;
+    align-items: center;
+    padding: 0 2rem;
+    gap: 1.5rem;
+}
+main {
+    flex: 1;
+    border-radius: 20px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-bottom: 7rem; /* Espacio para que el contenido no quede detrás del footer */
+}
+
+footer > img {
+    width: 60px;
+    height: 60px;
+    border-radius: 8px;
+    object-fit: cover;
+    background-color: #383838; /* Para cuando no hay imagen */
+}
+
+.footer-description {
+    flex: 1;
+    min-width: 0; /* Para que el text-overflow funcione */
+}
+
+.footer-description h1 {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.footer-description p {
+    font-size: 14px;
+    color: var(--color-text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.footer-controls {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.footer-controls button {
+    width: 40px;
+    height: 40px;
+    background: transparent;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: transform 0.2s, background-color 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.footer-controls button img {
+    width: 24px;
+    height: 24px;
+}
+
+.footer-controls button:hover {
+    transform: scale(1.1);
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.footer-controls button:active {
+    transform: scale(0.95);
+}
+
+/* Botón de play/pause más grande */
+.footer-btn-playpause {
+    width: 48px;
+    height: 48px;
+    background-color: white;
+}
+
+.footer-btn-playpause img {
+    width: 28px;
+    height: 28px;
+}
+
+.footer-btn-playpause:hover {
+    background-color: #f0f0f0;
+    transform: scale(1.1);
 }

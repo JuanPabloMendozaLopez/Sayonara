@@ -9,6 +9,7 @@ request.onupgradeneeded = (e) => {
 request.onsuccess = (e) => {
     db = e.target.result;
     loadSavedSongs();
+    loadFavoriteSongs();
 }
 
 const range = document.querySelector("input[type=range]");
@@ -37,6 +38,11 @@ const startTime = document.getElementById("start-time");
 const endTime = document.getElementById("end-time");
 const btnPlayPause = document.querySelector(".btn-playpause");
 const iconPlayPause = document.getElementById("icon-playpause");
+
+const footer = document.querySelector("footer");
+const footerSongName = document.getElementById("footer-song-name");
+const footerArtistName = document.getElementById("footer-artist-name");
+const footerAlbumPortrait = footer.querySelector("img");
 
 let currentFile = null;
 let currentTitle = "";
@@ -154,6 +160,9 @@ function loadAndPlaySong(file) {
 
     jsmediatags.read(file, {
         onSuccess: function(tag) {
+
+            footer.style.display = "";
+
             const { title, artist, picture } = tag.tags;
 
             currentTitle = title || "Sin titulo";
@@ -161,6 +170,8 @@ function loadAndPlaySong(file) {
 
             songName.textContent = currentTitle;
             artistName.textContent = currentArtist;
+            footerSongName.textContent = currentTitle;
+            footerArtistName.textContent = currentArtist;
 
             let pictureUrl;
             if (picture) {
@@ -174,6 +185,7 @@ function loadAndPlaySong(file) {
             }
 
             albumPortrait.src = pictureUrl;
+            footerAlbumPortrait.src = pictureUrl;
 
             audio.removeEventListener("timeupdate", timeUpdate);
             audio.removeEventListener("loadedmetadata", loadedMetaData);
@@ -249,11 +261,11 @@ function formatTime(seconds) {
     return `${min}:${sec.toString().padStart(2, "0")}`;
 }
 
-albumPortrait.addEventListener("click", () => {
-    inputFile.setAttribute("data-action", "play");
-    inputFile.value = "";
-    inputFile.click();
-});
+// albumPortrait.addEventListener("click", () => {
+//     inputFile.setAttribute("data-action", "play");
+//     inputFile.value = "";
+//     inputFile.click();
+// });
 
 const btn_add = document.getElementById("btn-add");
 btn_add.addEventListener("click", () => {
@@ -302,6 +314,12 @@ navigationButtons.forEach(button => {
         button.classList.add("active");
         const section = document.getElementById(button.dataset.section);
         section.style.display = "flex"
+
+        if (button.dataset.section === "inicio" || currentSongId === null) {
+            footer.style.display = "none";
+        } else if (currentSongId !== null) {
+            footer.style.display = "";
+        }
     });
 });
 
@@ -360,21 +378,75 @@ function loadSavedSongs() {
             song_list.appendChild(songHTML);
         });
 
-        activeItemEvents();
+        activeItemEvents(".song-list .song-item");
         updateSongListUI();
     };
 }
 
-function activeItemEvents() {
-    const song_items = document.querySelectorAll(".song-item");
+function loadFavoriteSongs() {
+    const favorite_list = document.querySelector(".favorite-list");
+    favorite_list.innerHTML = "";
+
+    const tx = db.transaction("songs", "readonly");
+    const store = tx.objectStore("songs");
+
+    const req = store.getAll();
+
+    req.onsuccess = () => {
+        const songs = req.result;
+
+        songs.forEach(song => {
+
+            if (!song.isFavorite) {
+                return;
+            }
+
+            const songHTML = document.createElement("div");
+
+            songHTML.classList.add("song-item");
+            songHTML.dataset.id = song.id;
+
+            songHTML.innerHTML = `
+            <div class="song-content">
+                <div class="picture-content">
+                    <img src="${song.picture}">
+                </div>
+                <div>
+                    <p class="song-title">${song.title}</p>
+                    <p class="song-artist">${song.artist}</p>
+                </div>
+            </div>
+            <div class="song-controls">
+                <p>${song.duration}</p>
+                <button class="btn-favorite ${song.isFavorite ? `active` : ``}">
+                    ${song.isFavorite ? 
+                        svg_favorite : 
+                        svg_nofavorite }
+                </button>
+            </div>
+            `;
+
+            favorite_list.appendChild(songHTML);
+        });
+
+        activeItemEvents(".favorite-list .song-item");
+        updateSongListUI();
+    };
+}
+
+function activeItemEvents(selector) {
+    const song_items = document.querySelectorAll(selector);
 
     song_items.forEach(song_item => {
         const picture_content = song_item.querySelector(".picture-content");
-        const btn_delete = song_item.querySelector(".btn-delete");
         const btn_favorite = song_item.querySelector(".btn-favorite");
         const id = Number(song_item.dataset.id);
 
-        btn_delete.addEventListener("click", () => {
+        const btn_delete = song_item.querySelector(".btn-delete");
+
+        if (".song-list .song-item" === selector) {
+
+            btn_delete.addEventListener("click", () => {
             const tx = db.transaction("songs", "readwrite");
             const store = tx.objectStore("songs");
             const req = store.delete(id);
@@ -385,9 +457,12 @@ function activeItemEvents() {
                     clearSongCard();
                 }
                 loadSavedSongs();
+                loadFavoriteSongs();
             }
         });
-
+            
+        }
+        
         btn_favorite.addEventListener("click", () => {
             const tx = db.transaction("songs", "readwrite");
             const store = tx.objectStore("songs");
@@ -397,15 +472,29 @@ function activeItemEvents() {
                 const song = req.result;
                 song.isFavorite = !song.isFavorite;
 
-                if (song.isFavorite) {
-                    btn_favorite.innerHTML = svg_favorite;
-                    btn_favorite.classList.add("active")
-                } else {
-                    btn_favorite.innerHTML = svg_nofavorite;
-                    btn_favorite.classList.remove("active");
-                }
+                // Actualizar TODOS los botones de favorito con este ID en TODAS las listas
+                document.querySelectorAll(`[data-id="${id}"] .btn-favorite`).forEach(btn => {
+                    if (song.isFavorite) {
+                        btn.innerHTML = svg_favorite;
+                        btn.classList.add("active");
+                    } else {
+                        btn.innerHTML = svg_nofavorite;
+                        btn.classList.remove("active");
+                    }
+                });
 
                 store.put(song);
+                
+                // Si se desmarcó como favorito, eliminarlo de la lista de favoritos
+                if (!song.isFavorite) {
+                    const favoriteItem = document.querySelector(`.favorite-list [data-id="${id}"]`);
+                    if (favoriteItem) {
+                        favoriteItem.remove();
+                    }
+                } else {
+                    // Si se marcó como favorito, recargar la lista de favoritos para agregarlo
+                    loadFavoriteSongs();
+                }
             }
         });
 
