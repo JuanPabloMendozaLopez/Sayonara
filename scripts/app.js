@@ -21,7 +21,7 @@ function updateRange() {
 
     const percent = ((val - min) / (max - min)) * 100;
 
-    range.style.background = `linear-gradient(to right, #787878 ${percent}%, #ddd ${percent}%)`;
+    range.style.background = `linear-gradient(to right, #ddd ${percent}%, #787878 ${percent}%)`;
 }
 
 range.addEventListener("input", updateRange);
@@ -31,6 +31,7 @@ updateRange();
 const inputFile = document.querySelector("input[type=file]");
 const audio = document.getElementById("audio");
 
+const songCard = document.querySelector('.song-card');
 const albumPortrait = document.querySelector(".album-portrait");
 const songName = document.getElementById("song-name");
 const artistName = document.getElementById("artist-name");
@@ -44,6 +45,7 @@ const footerSongName = document.getElementById("footer-song-name");
 const footerArtistName = document.getElementById("footer-artist-name");
 const footerAlbumPortrait = footer.querySelector("img");
 const footerIconPlayPause = document.getElementById("footer-icon-playpause");
+const footerBtnPlayPause = document.querySelector(".footer-btn-playpause");
 
 let currentFile = null;
 let currentTitle = "";
@@ -177,6 +179,7 @@ function loadAndPlaySong(file) {
             footerArtistName.textContent = currentArtist;
 
             let pictureUrl;
+            let defaultPicture = "assets/default.jpeg"
             if (picture) {
                 let base64String = "";
                 for (let i = 0; i < picture.data.length; i++) {
@@ -184,11 +187,15 @@ function loadAndPlaySong(file) {
                 }
                 pictureUrl = `data:${picture.format};base64,${btoa(base64String)}`;
             } else {
-                pictureUrl = "assets/default.jpeg";
+                pictureUrl = defaultPicture;
             }
 
             albumPortrait.src = pictureUrl;
             footerAlbumPortrait.src = pictureUrl;
+
+            if (pictureUrl !== defaultPicture) {
+                updateCardColor(albumPortrait);
+            }
 
             audio.removeEventListener("timeupdate", timeUpdate);
             audio.removeEventListener("loadedmetadata", loadedMetaData);
@@ -313,6 +320,7 @@ function playPause() {
 }
 
 btnPlayPause.addEventListener("click", playPause);
+footerBtnPlayPause.addEventListener("click", playPause);
 
 const navigationButtons = document.querySelectorAll(".navigation-button");
 const sections = document.querySelectorAll("section");
@@ -581,6 +589,7 @@ function clearSongCard() {
     currentTitle = "";
     currentArtist = "";
 
+    songCard.style.background = "var(--color-bg-card)"
     songName.textContent = "Sin reproducir";
     artistName.textContent = "Artista desconocido";
     albumPortrait.src = "assets/default.jpeg";
@@ -609,4 +618,27 @@ function adjustFooterWidth() {
     const scrollbarWidth = hasScrollbar ? 15 : 0;
     
     footer.style.width = `calc(100vw - 280px - 60px - ${scrollbarWidth}px)`;
+}
+
+function updateCardColor(imageElement) {
+    const colorThief = new ColorThief();
+    
+    // Espera a que la imagen cargue
+    if (imageElement.complete) {
+        applyColor(imageElement);
+    } else {
+        imageElement.addEventListener('load', function() {
+            applyColor(imageElement);
+        });
+    }
+    
+    function applyColor(img) {
+        const color = colorThief.getColor(img);
+        
+        // Aplica un gradiente con el color extraído
+        songCard.style.background = `linear-gradient(135deg, 
+            rgb(${color[0]}, ${color[1]}, ${color[2]}) 0%, 
+            rgba(${color[0]}, ${color[1]}, ${color[2]}, 0.6) 50%,
+            var(--color-bg-card) 100%)`;
+    }
 }
