@@ -334,7 +334,7 @@ function loadAndSaveSong() {
                 tempAudio.src = '';
             });
 
-            setTimeout(adjustFooterWidth, 100);
+            setTimeout(adjustFooterWidth, 200);
         },
         onError: function(error) {
             console.log(error);
@@ -472,7 +472,7 @@ navigationButtons.forEach(button => {
         const shouldShowFooter = !isInicio && currentSongId !== null;
         
         toggleFooter(shouldShowFooter);
-        setTimeout(adjustFooterWidth, 100); 
+        setTimeout(adjustFooterWidth, 200); 
     });
 });
 
@@ -687,6 +687,9 @@ function activeItemEvents(selector) {
                 });
 
                 songStore.put(song);
+                if (currentContext === "favorites") {
+                currentPlaylist.push(id)
+                }
                 
                 if (!song.isFavorite) {
                     favoriteStore.delete(id);
@@ -754,6 +757,7 @@ function activeItemEvents(selector) {
                 req.onsuccess = () => {
                     const song = req.result;
                     loadAndPlaySong(song.file);
+                    setTimeout(adjustFooterWidth, 200);
                 };
             }
         });

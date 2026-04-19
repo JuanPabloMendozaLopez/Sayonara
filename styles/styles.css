@@ -79,7 +79,7 @@ section {
     justify-content: center;
 }
 
-.guardados-header, .favoritos-header {
+.guardados-header, .favoritos-header, .playlist-header {
     width: 100%;
     display: flex;
     flex-direction: column;
@@ -87,12 +87,12 @@ section {
     align-items: flex-start;
 }
 
-.guardados-header > p, .favoritos-header > p {
+.guardados-header > p, .favoritos-header > p, .playlist-header > p {
     color: rgb(158, 158, 158);
     margin-bottom: 16px;
 }
 
-.guardados-title, .favoritos-title  {
+.guardados-title, .favoritos-title, .playlist-title  {
     display: flex;
     width: 100%;
     justify-content: space-between;
