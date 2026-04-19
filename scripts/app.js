@@ -1,9 +1,25 @@
 // inicializar db
-const request = indexedDB.open("myDB", 2);
+const request = indexedDB.open("myDB", 6);
 
 request.onupgradeneeded = (e) => {
     db = e.target.result
-    db.createObjectStore("songs", { keyPath: "id", autoIncrement: true } )
+
+    if (!db.objectStoreNames.contains("songs")) {
+        db.createObjectStore("songs", { keyPath: "id", autoIncrement: true } )
+    }
+    
+    let favoriteStore;
+
+    if (!db.objectStoreNames.contains("favorites")) {
+        favoriteStore = db.createObjectStore("favorites", { keyPath: "songId" });
+    } else {
+        favoriteStore = e.target.transaction.objectStore("favorites");
+    }
+
+    if (!favoriteStore.indexNames.contains("order")) {
+        favoriteStore.createIndex("order", "order", { unique: false });
+    }
+
 }
 
 request.onsuccess = (e) => {
@@ -12,21 +28,13 @@ request.onsuccess = (e) => {
     loadFavoriteSongs();
 }
 
-const range = document.querySelector("input[type=range]");
-
-function updateRange() {
-    const min = range.min || 0;
-    const max = range.max || 100;
-    const val = range.value;
-
-    const percent = ((val - min) / (max - min)) * 100;
-
-    range.style.background = `linear-gradient(to right, #ddd ${percent}%, #787878 ${percent}%)`;
-}
-
-range.addEventListener("input", updateRange);
-
-updateRange();
+//  SVG al inicio del archivo
+const svg_favorite   =  `<svg width="800px" height="800px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M2 9.1371C2 14 6.01943 16.5914 8.96173 18.9109C10 19.7294 11 20.5 12 20.5C13 20.5 14 19.7294 15.0383 18.9109C17.9806 16.5914 22 14 22 9.1371C22 4.27416 16.4998 0.825464 12 5.50063C7.50016 0.825464 2 4.27416 2 9.1371Z" fill="currentColor"/>
+                        </svg>`;
+const svg_nofavorite = `<svg width="800px" height="800px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M8.96173 18.9109L9.42605 18.3219L8.96173 18.9109ZM12 5.50063L11.4596 6.02073C11.601 6.16763 11.7961 6.25063 12 6.25063C12.2039 6.25063 12.399 6.16763 12.5404 6.02073L12 5.50063ZM15.0383 18.9109L15.5026 19.4999L15.0383 18.9109ZM9.42605 18.3219C7.91039 17.1271 6.25307 15.9603 4.93829 14.4798C3.64922 13.0282 2.75 11.3345 2.75 9.1371H1.25C1.25 11.8026 2.3605 13.8361 3.81672 15.4758C5.24723 17.0866 7.07077 18.3752 8.49742 19.4999L9.42605 18.3219ZM2.75 9.1371C2.75 6.98623 3.96537 5.18252 5.62436 4.42419C7.23607 3.68748 9.40166 3.88258 11.4596 6.02073L12.5404 4.98053C10.0985 2.44352 7.26409 2.02539 5.00076 3.05996C2.78471 4.07292 1.25 6.42503 1.25 9.1371H2.75ZM8.49742 19.4999C9.00965 19.9037 9.55954 20.3343 10.1168 20.6599C10.6739 20.9854 11.3096 21.25 12 21.25V19.75C11.6904 19.75 11.3261 19.6293 10.8736 19.3648C10.4213 19.1005 9.95208 18.7366 9.42605 18.3219L8.49742 19.4999ZM15.5026 19.4999C16.9292 18.3752 18.7528 17.0866 20.1833 15.4758C21.6395 13.8361 22.75 11.8026 22.75 9.1371H21.25C21.25 11.3345 20.3508 13.0282 19.0617 14.4798C17.7469 15.9603 16.0896 17.1271 14.574 18.3219L15.5026 19.4999ZM22.75 9.1371C22.75 6.42503 21.2153 4.07292 18.9992 3.05996C16.7359 2.02539 13.9015 2.44352 11.4596 4.98053L12.5404 6.02073C14.5983 3.88258 16.7639 3.68748 18.3756 4.42419C20.0346 5.18252 21.25 6.98623 21.25 9.1371H22.75ZM14.574 18.3219C14.0479 18.7366 13.5787 19.1005 13.1264 19.3648C12.6739 19.6293 12.3096 19.75 12 19.75V21.25C12.6904 21.25 13.3261 20.9854 13.8832 20.6599C14.4405 20.3343 14.9903 19.9037 15.5026 19.4999L14.574 18.3219Z" fill="currentColor"/>
+                        </svg>`
 
 const inputFile = document.querySelector("input[type=file]");
 const audio = document.getElementById("audio");
@@ -46,11 +54,35 @@ const footerArtistName = document.getElementById("footer-artist-name");
 const footerAlbumPortrait = footer.querySelector("img");
 const footerIconPlayPause = document.getElementById("footer-icon-playpause");
 const footerBtnPlayPause = document.querySelector(".footer-btn-playpause");
+const footerStartTime = document.getElementById("footer-start-time");
+const footerEndTime = document.getElementById("footer-end-time");
+
+//  Seleccionar ambos ranges
+const mainRange = document.querySelector("#inicio .track-bar input[type=range]");
+const footerRange = document.querySelector("footer .track-bar input[type=range]");
 
 let currentFile = null;
 let currentTitle = "";
 let currentArtist = "";
 let currentSongId = null;
+
+let currentContext = null;
+let currentPlaylist = [];
+let currentIndex = -1;
+
+let isUserSeeking = false; //  Nueva variable para controlar el arrastre
+
+function updateRange(rangeElement) {
+    if (!rangeElement) return;
+    
+    const min = rangeElement.min || 0;
+    const max = rangeElement.max || 100;
+    const val = rangeElement.value;
+
+    const percent = ((val - min) / (max - min)) * 100;
+
+    rangeElement.style.background = `linear-gradient(to right, #ddd ${percent}%, #787878 ${percent}%)`;
+}
 
 function isAudioPlaying() {
     return !audio.paused && !audio.ended && audio.currentTime > 0;
@@ -120,25 +152,62 @@ function updateSongListUI() {
     updateSongListUIWithState(isAudioPlaying());
 }
 
+//  Solo actualiza si el usuario NO está arrastrando
 function timeUpdate() {
-    if (audio.ended) {
+    if (audio.ended || isUserSeeking) {
         return;
     }
     
-    startTime.textContent = formatTime(audio.currentTime);
-    range.value = (audio.currentTime / audio.duration) * 100;
-    updateRange();
+    const currentTime = formatTime(audio.currentTime);
+    const progress = (audio.currentTime / audio.duration) * 100;
+    
+    // Actualizar ambos displays de tiempo
+    if (startTime) startTime.textContent = currentTime;
+    if (footerStartTime) footerStartTime.textContent = currentTime;
+    
+    // Actualizar ambos ranges
+    if (mainRange) {
+        mainRange.value = progress;
+        updateRange(mainRange);
+    }
+    
+    if (footerRange) {
+        footerRange.value = progress;
+        updateRange(footerRange);
+    }
 }
 
 function loadedMetaData() {
-    endTime.textContent = formatTime(audio.duration);
+    const duration = formatTime(audio.duration);
+    if (endTime) endTime.textContent = duration;
+    if (footerEndTime) footerEndTime.textContent = duration;
 }
 
-function updateTrackValue() {
-    let seconds = (audio.duration * range.value) / 100;
+//  Maneja el arrastre visual
+function handleRangeInput(rangeElement) {
+    isUserSeeking = true; //  Bloquear actualizaciones automáticas
+    
+    // Sincronizar el otro range
+    const value = rangeElement.value;
+    if (rangeElement === mainRange && footerRange) {
+        footerRange.value = value;
+        updateRange(footerRange);
+    } else if (rangeElement === footerRange && mainRange) {
+        mainRange.value = value;
+        updateRange(mainRange);
+    }
+    
+    updateRange(rangeElement);
+}
+
+//  Maneja cuando suelta el mouse
+function handleRangeChange(rangeElement) {
+    if (!audio.duration) return;
+    
+    let seconds = (audio.duration * rangeElement.value) / 100;
     audio.currentTime = seconds;
-    startTime.textContent = audio.currentTime === audio.duration ? formatTime(audio.duration) : formatTime(audio.currentTime);
-    updateRange();
+    
+    isUserSeeking = false; //  Permitir actualizaciones automáticas nuevamente
 }
 
 function saveAudio(song, file, picture) {
@@ -165,9 +234,6 @@ function loadAndPlaySong(file) {
 
     jsmediatags.read(file, {
         onSuccess: function(tag) {
-
-            // footer.style.display = "";
-
             const { title, artist, picture } = tag.tags;
 
             currentTitle = title || "Sin titulo";
@@ -199,25 +265,19 @@ function loadAndPlaySong(file) {
 
             audio.removeEventListener("timeupdate", timeUpdate);
             audio.removeEventListener("loadedmetadata", loadedMetaData);
-            range.removeEventListener("input", updateTrackValue);
             
             let url = URL.createObjectURL(file);
             audio.src = url;
+            
             audio.addEventListener("loadedmetadata", loadedMetaData);
             audio.addEventListener("timeupdate", timeUpdate);
-            range.addEventListener("input", updateTrackValue);
             
             audio.play().catch(err => {
                 console.log("Error al reproducir:", err);
             });
 
-            // ✅ Usa el botón activo, no la sección
             const activeButton = document.querySelector('.navigation-button.active');
             const isInicio = activeButton?.dataset.section === "inicio";
-            
-            console.log("loadAndPlaySong - Section:", activeButton?.dataset.section);
-            console.log("loadAndPlaySong - isInicio:", isInicio);
-            console.log("loadAndPlaySong - Showing footer:", !isInicio);
             
             toggleFooter(!isInicio);
         },
@@ -278,16 +338,11 @@ function loadAndSaveSong() {
 }
 
 function formatTime(seconds) {
+    if (isNaN(seconds)) return "0:00";
     const min = Math.floor(seconds / 60);
     const sec = Math.floor(seconds % 60);
     return `${min}:${sec.toString().padStart(2, "0")}`;
 }
-
-// albumPortrait.addEventListener("click", () => {
-//     inputFile.setAttribute("data-action", "play");
-//     inputFile.value = "";
-//     inputFile.click();
-// });
 
 const btn_add = document.getElementById("btn-add");
 btn_add.addEventListener("click", () => {
@@ -319,8 +374,76 @@ function playPause() {
     }
 }
 
-btnPlayPause.addEventListener("click", playPause);
-footerBtnPlayPause.addEventListener("click", playPause);
+function playNext() {
+    if (!currentContext || currentPlaylist.length === 0) {
+        console.log("No hay contexto de reproducción");
+        return;
+    }
+    
+    const nextIndex = (currentIndex + 1) % currentPlaylist.length;
+    const nextSongId = currentPlaylist[nextIndex];
+    
+    console.log("Siguiente canción:", nextSongId);
+    
+    currentIndex = nextIndex;
+    currentSongId = nextSongId;
+    updateSongListUI();
+    
+    const tx = db.transaction("songs", "readonly");
+    const store = tx.objectStore("songs");
+    const req = store.get(nextSongId);
+    
+    req.onsuccess = () => {
+        const song = req.result;
+        if (song) {
+            loadAndPlaySong(song.file);
+        }
+    };
+}
+
+function playPrevious() {
+    if (!currentContext || currentPlaylist.length === 0) {
+        console.log("No hay contexto de reproducción");
+        return;
+    }
+    
+    const prevIndex = currentIndex === 0 
+        ? currentPlaylist.length - 1 
+        : currentIndex - 1;
+    const prevSongId = currentPlaylist[prevIndex];
+    
+    console.log("Canción anterior:", prevSongId);
+    
+    currentIndex = prevIndex;
+    currentSongId = prevSongId;
+    updateSongListUI();
+    
+    const tx = db.transaction("songs", "readonly");
+    const store = tx.objectStore("songs");
+    const req = store.get(prevSongId);
+    
+    req.onsuccess = () => {
+        const song = req.result;
+        if (song) {
+            loadAndPlaySong(song.file);
+        }
+    };
+}
+
+const btnNext = document.querySelector(".btn-next");
+const btnPrevious = document.querySelector(".btn-back");
+
+if (btnNext) btnNext.addEventListener("click", playNext);
+if (btnPrevious) btnPrevious.addEventListener("click", playPrevious);
+
+const footerBtnNext = document.querySelector(".footer-btn-next");
+const footerBtnPrevious = document.querySelector(".footer-btn-back");
+
+if (footerBtnNext) footerBtnNext.addEventListener("click", playNext);
+if (footerBtnPrevious) footerBtnPrevious.addEventListener("click", playPrevious);
+
+if (btnPlayPause) btnPlayPause.addEventListener("click", playPause);
+if (footerBtnPlayPause) footerBtnPlayPause.addEventListener("click", playPause);
 
 const navigationButtons = document.querySelectorAll(".navigation-button");
 const sections = document.querySelectorAll("section");
@@ -335,18 +458,13 @@ navigationButtons.forEach(button => {
             btn.classList.remove("active");
         })
         
-        button.classList.add("active");  // ← Primero cambias el botón activo
+        button.classList.add("active");
         
         const section = document.getElementById(button.dataset.section);
         section.style.display = "flex"
 
-        // ✅ Ahora sí verifica con el botón correcto
         const isInicio = button.dataset.section === "inicio";
         const shouldShowFooter = !isInicio && currentSongId !== null;
-        
-        console.log("Section:", button.dataset.section);
-        console.log("currentSongId:", currentSongId);
-        console.log("shouldShowFooter:", shouldShowFooter);
         
         toggleFooter(shouldShowFooter);
         setTimeout(adjustFooterWidth, 100); 
@@ -354,13 +472,6 @@ navigationButtons.forEach(button => {
 });
 
 navigationButtons[2].click();
-
-const svg_favorite   =  `<svg width="800px" height="800px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M2 9.1371C2 14 6.01943 16.5914 8.96173 18.9109C10 19.7294 11 20.5 12 20.5C13 20.5 14 19.7294 15.0383 18.9109C17.9806 16.5914 22 14 22 9.1371C22 4.27416 16.4998 0.825464 12 5.50063C7.50016 0.825464 2 4.27416 2 9.1371Z" fill="currentColor"/>
-                        </svg>`;
-const svg_nofavorite = `<svg width="800px" height="800px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M8.96173 18.9109L9.42605 18.3219L8.96173 18.9109ZM12 5.50063L11.4596 6.02073C11.601 6.16763 11.7961 6.25063 12 6.25063C12.2039 6.25063 12.399 6.16763 12.5404 6.02073L12 5.50063ZM15.0383 18.9109L15.5026 19.4999L15.0383 18.9109ZM9.42605 18.3219C7.91039 17.1271 6.25307 15.9603 4.93829 14.4798C3.64922 13.0282 2.75 11.3345 2.75 9.1371H1.25C1.25 11.8026 2.3605 13.8361 3.81672 15.4758C5.24723 17.0866 7.07077 18.3752 8.49742 19.4999L9.42605 18.3219ZM2.75 9.1371C2.75 6.98623 3.96537 5.18252 5.62436 4.42419C7.23607 3.68748 9.40166 3.88258 11.4596 6.02073L12.5404 4.98053C10.0985 2.44352 7.26409 2.02539 5.00076 3.05996C2.78471 4.07292 1.25 6.42503 1.25 9.1371H2.75ZM8.49742 19.4999C9.00965 19.9037 9.55954 20.3343 10.1168 20.6599C10.6739 20.9854 11.3096 21.25 12 21.25V19.75C11.6904 19.75 11.3261 19.6293 10.8736 19.3648C10.4213 19.1005 9.95208 18.7366 9.42605 18.3219L8.49742 19.4999ZM15.5026 19.4999C16.9292 18.3752 18.7528 17.0866 20.1833 15.4758C21.6395 13.8361 22.75 11.8026 22.75 9.1371H21.25C21.25 11.3345 20.3508 13.0282 19.0617 14.4798C17.7469 15.9603 16.0896 17.1271 14.574 18.3219L15.5026 19.4999ZM22.75 9.1371C22.75 6.42503 21.2153 4.07292 18.9992 3.05996C16.7359 2.02539 13.9015 2.44352 11.4596 4.98053L12.5404 6.02073C14.5983 3.88258 16.7639 3.68748 18.3756 4.42419C20.0346 5.18252 21.25 6.98623 21.25 9.1371H22.75ZM14.574 18.3219C14.0479 18.7366 13.5787 19.1005 13.1264 19.3648C12.6739 19.6293 12.3096 19.75 12 19.75V21.25C12.6904 21.25 13.3261 20.9854 13.8832 20.6599C14.4405 20.3343 14.9903 19.9037 15.5026 19.4999L14.574 18.3219Z" fill="currentColor"/>
-                        </svg>`
 
 function loadSavedSongs() {
     const song_list = document.querySelector(".song-list");
@@ -417,19 +528,24 @@ function loadFavoriteSongs() {
     const favorite_list = document.querySelector(".favorite-list");
     favorite_list.innerHTML = "";
 
-    const tx = db.transaction("songs", "readonly");
-    const store = tx.objectStore("songs");
+    const tx = db.transaction(["favorites", "songs"], "readonly");
+    const favoriteStore = tx.objectStore("favorites");
+    const songStore = tx.objectStore("songs");
 
-    const req = store.getAll();
+    const index = favoriteStore.index("order");
+    const favReq = index.getAll();
+    const songReq = songStore.getAll();
 
-    req.onsuccess = () => {
-        const songs = req.result;
+    tx.oncomplete = () => {
+        const favorites = favReq.result;
+        const songs = songReq.result;
 
-        songs.forEach(song => {
+        const songMap = new Map();
+        songs.forEach(song => songMap.set(song.id, song));
 
-            if (!song.isFavorite) {
-                return;
-            }
+        favorites.forEach(fav => {
+            const song = songMap.get(fav.songId);
+            if (!song) return;
 
             const songHTML = document.createElement("div");
 
@@ -448,10 +564,8 @@ function loadFavoriteSongs() {
             </div>
             <div class="song-controls">
                 <p>${song.duration}</p>
-                <button class="btn-favorite ${song.isFavorite ? `active` : ``}">
-                    ${song.isFavorite ? 
-                        svg_favorite : 
-                        svg_nofavorite }
+                <button class="btn-favorite active">
+                    ${svg_favorite}
                 </button>
             </div>
             `;
@@ -477,32 +591,47 @@ function activeItemEvents(selector) {
         if (".song-list .song-item" === selector) {
 
             btn_delete.addEventListener("click", () => {
-            const tx = db.transaction("songs", "readwrite");
-            const store = tx.objectStore("songs");
-            const req = store.delete(id);
+                const tx = db.transaction(["songs", "favorites"], "readwrite");
+                const songStore = tx.objectStore("songs");
+                const favoriteStore = tx.objectStore("favorites");
+                const songReq = songStore.delete(id);
 
-            req.onsuccess = () => {
-                console.log("Cancion eliminada");
-                if (currentSongId === id) {
-                    clearSongCard();
+                songReq.onsuccess = () => {
+                    
+                    console.log("Cancion eliminada");
+                    favoriteStore.delete(id);
+
+                    if (currentSongId === id) {
+                        clearSongCard();
+                    }
+                    loadSavedSongs();
+                    loadFavoriteSongs();
                 }
-                loadSavedSongs();
-                loadFavoriteSongs();
-            }
-        });
+
+                songReq.onerror = () => {
+                    console.log("Error al eliminar la canción");
+                };
+
+            });
             
         }
         
         btn_favorite.addEventListener("click", () => {
-            const tx = db.transaction("songs", "readwrite");
-            const store = tx.objectStore("songs");
-            const req = store.get(id);
+            const tx = db.transaction(["songs", "favorites"], "readwrite");
+            const songStore = tx.objectStore("songs");
+            const favoriteStore = tx.objectStore("favorites");
+            const songReq = songStore.get(id);
 
-            req.onsuccess = () => {
-                const song = req.result;
+            songReq.onsuccess = () => {
+                const song = songReq.result;
+
+                if (!song) {
+                    console.log("La canción no existe");
+                    return;
+                }
+
                 song.isFavorite = !song.isFavorite;
 
-                // Actualizar TODOS los botones de favorito con este ID en TODAS las listas
                 document.querySelectorAll(`[data-id="${id}"] .btn-favorite`).forEach(btn => {
                     if (song.isFavorite) {
                         btn.innerHTML = svg_favorite;
@@ -513,19 +642,36 @@ function activeItemEvents(selector) {
                     }
                 });
 
-                store.put(song);
+                songStore.put(song);
                 
-                // Si se desmarcó como favorito, eliminarlo de la lista de favoritos
                 if (!song.isFavorite) {
+                    favoriteStore.delete(id);
+                    
                     const favoriteItem = document.querySelector(`.favorite-list [data-id="${id}"]`);
                     if (favoriteItem) {
                         favoriteItem.remove();
                     }
+
                 } else {
-                    // Si se marcó como favorito, recargar la lista de favoritos para agregarlo
-                    loadFavoriteSongs();
+                    favoriteStore.put({
+                        songId: id,
+                        order: Date.now()
+                    });
                 }
-            }
+            };
+
+            songReq.onerror = () => {
+                console.log("Error al procesar favorito");
+            };
+
+            tx.oncomplete = () => {
+                console.log("Favorito actualizado correctamente");
+                loadFavoriteSongs();
+            };
+
+            tx.onerror = () => {
+                console.log("Error en la transacción de favoritos");
+            };
         });
 
         picture_content.addEventListener("click", () => {
@@ -535,6 +681,26 @@ function activeItemEvents(selector) {
                 playPause();
             } else {
                 currentSongId = id;
+                
+                const activeButton = document.querySelector('.navigation-button.active');
+                const section = activeButton?.dataset.section;
+                
+                if (section === "guardados") {
+                    currentContext = "saved";
+                    const allSongItems = document.querySelectorAll(".song-list .song-item");
+                    currentPlaylist = Array.from(allSongItems).map(item => Number(item.dataset.id));
+                } else if (section === "favoritos") {
+                    currentContext = "favorites";
+                    const allSongItems = document.querySelectorAll(".favorite-list .song-item");
+                    currentPlaylist = Array.from(allSongItems).map(item => Number(item.dataset.id));
+                }
+                
+                currentIndex = currentPlaylist.indexOf(id);
+                
+                console.log("Contexto:", currentContext);
+                console.log("Playlist:", currentPlaylist);
+                console.log("Índice actual:", currentIndex);
+                
                 updateSongListUI();
                 
                 const tx = db.transaction("songs", "readonly");
@@ -575,12 +741,9 @@ function toggleFooter(show) {
 }
 
 function clearSongCard() {
-    // Primero desvincula los eventos
     audio.removeEventListener("timeupdate", timeUpdate);
     audio.removeEventListener("loadedmetadata", loadedMetaData);
-    range.removeEventListener("input", updateTrackValue);
     
-    // Ahora sí pausa y limpia
     audio.pause();
     audio.src = "";
 
@@ -596,10 +759,18 @@ function clearSongCard() {
 
     startTime.textContent = "0:00";
     endTime.textContent = "0:00";
+    footerStartTime.textContent = "0:00";
+    footerEndTime.textContent = "0:00";
 
-    // Ahora resetea el range
-    range.value = 0;
-    range.style.background = "#ddd";
+    if (mainRange) {
+        mainRange.value = 0;
+        mainRange.style.background = "#ddd";
+    }
+    
+    if (footerRange) {
+        footerRange.value = 0;
+        footerRange.style.background = "#ddd";
+    }
     
     updatePlayPauseButton();
     updateSongListUI();
@@ -611,10 +782,7 @@ function adjustFooterWidth() {
     const footer = document.querySelector('footer');
     const main = document.querySelector('main');
     
-    // Detecta si main tiene scrollbar
     const hasScrollbar = main.scrollHeight > main.clientHeight;
-    
-    // Ancho del scrollbar (aproximadamente 15px en la mayoría de navegadores)
     const scrollbarWidth = hasScrollbar ? 15 : 0;
     
     footer.style.width = `calc(100vw - 280px - 60px - ${scrollbarWidth}px)`;
@@ -623,7 +791,6 @@ function adjustFooterWidth() {
 function updateCardColor(imageElement) {
     const colorThief = new ColorThief();
     
-    // Espera a que la imagen cargue
     if (imageElement.complete) {
         applyColor(imageElement);
     } else {
@@ -635,10 +802,22 @@ function updateCardColor(imageElement) {
     function applyColor(img) {
         const color = colorThief.getColor(img);
         
-        // Aplica un gradiente con el color extraído
         songCard.style.background = `linear-gradient(135deg, 
             rgb(${color[0]}, ${color[1]}, ${color[2]}) 0%, 
             rgba(${color[0]}, ${color[1]}, ${color[2]}, 0.6) 50%,
             var(--color-bg-card) 100%)`;
     }
+}
+
+//  Conectar eventos de los ranges
+if (mainRange) {
+    mainRange.addEventListener("input", () => handleRangeInput(mainRange));
+    mainRange.addEventListener("change", () => handleRangeChange(mainRange));
+    updateRange(mainRange);
+}
+
+if (footerRange) {
+    footerRange.addEventListener("input", () => handleRangeInput(footerRange));
+    footerRange.addEventListener("change", () => handleRangeChange(footerRange));
+    updateRange(footerRange);
 }
