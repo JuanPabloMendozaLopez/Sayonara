@@ -56,6 +56,7 @@ const footerIconPlayPause = document.getElementById("footer-icon-playpause");
 const footerBtnPlayPause = document.querySelector(".footer-btn-playpause");
 const footerStartTime = document.getElementById("footer-start-time");
 const footerEndTime = document.getElementById("footer-end-time");
+const inicioSection = document.querySelector("#inicio");
 
 //  Seleccionar ambos ranges
 const mainRange = document.querySelector("#inicio .track-bar input[type=range]");
@@ -70,7 +71,7 @@ let currentContext = null;
 let currentPlaylist = [];
 let currentIndex = -1;
 
-let isUserSeeking = false; //  Nueva variable para controlar el arrastre
+let isUserSeeking = false; 
 
 function updateRange(rangeElement) {
     if (!rangeElement) return;
@@ -117,6 +118,7 @@ audio.addEventListener("pause", () => {
 audio.addEventListener("ended", () => {
     updatePlayPauseButtonWithState(false);
     updateSongListUIWithState(false);
+    playNext();
 });
 
 function updateSongListUIWithState(isPlaying) {
@@ -223,6 +225,9 @@ function saveAudio(song, file, picture) {
     req.onsuccess = (e) => {
         const id = e.target.result;
         song.id = id;
+        if (currentContext === "saved") {
+                currentPlaylist.push(id)
+        }
         loadSavedSongs();
     };
 }
@@ -260,7 +265,7 @@ function loadAndPlaySong(file) {
             footerAlbumPortrait.src = pictureUrl;
 
             if (pictureUrl !== defaultPicture) {
-                updateCardColor(albumPortrait);
+                applyColor(albumPortrait);
             }
 
             audio.removeEventListener("timeupdate", timeUpdate);
@@ -485,6 +490,23 @@ function loadSavedSongs() {
     req.onsuccess = () => {
         const songs = req.result;
 
+        if (songs.length === 0) {
+
+            const noSongsHTML = document.createElement("div");
+
+            noSongsHTML.classList.add("no-songs-item");
+            
+            noSongsHTML.innerHTML = `
+                                        <svg width="800px" height="800px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M9 19C9 20.1046 7.65685 21 6 21C4.34315 21 3 20.1046 3 19C3 17.8954 4.34315 17 6 17C7.65685 17 9 17.8954 9 19ZM9 19V5L21 3V17M21 17C21 18.1046 19.6569 19 18 19C16.3431 19 15 18.1046 15 17C15 15.8954 16.3431 15 18 15C19.6569 15 21 15.8954 21 17ZM9 9L21 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                        </svg>
+                                        <p>No hay canciones aquí todavía.</p>
+                                    `
+
+            song_list.appendChild(noSongsHTML);
+
+        }
+
         songs.forEach(song => {
             const songHTML = document.createElement("div");
 
@@ -539,6 +561,23 @@ function loadFavoriteSongs() {
     tx.oncomplete = () => {
         const favorites = favReq.result;
         const songs = songReq.result;
+
+        if (favorites.length === 0) {
+
+            const noSongsHTML = document.createElement("div");
+
+            noSongsHTML.classList.add("no-songs-item");
+            
+            noSongsHTML.innerHTML = `
+                                        <svg width="800px" height="800px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M9 19C9 20.1046 7.65685 21 6 21C4.34315 21 3 20.1046 3 19C3 17.8954 4.34315 17 6 17C7.65685 17 9 17.8954 9 19ZM9 19V5L21 3V17M21 17C21 18.1046 19.6569 19 18 19C16.3431 19 15 18.1046 15 17C15 15.8954 16.3431 15 18 15C19.6569 15 21 15.8954 21 17ZM9 9L21 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                        </svg>
+                                        <p>No hay canciones aquí todavía.</p>
+                                    `
+
+            favorite_list.appendChild(noSongsHTML);
+
+        }
 
         const songMap = new Map();
         songs.forEach(song => songMap.set(song.id, song));
@@ -600,17 +639,22 @@ function activeItemEvents(selector) {
                     
                     console.log("Cancion eliminada");
                     favoriteStore.delete(id);
+                    currentPlaylist = currentPlaylist.filter(item => item !== id);
 
                     if (currentSongId === id) {
                         clearSongCard();
                     }
-                    loadSavedSongs();
-                    loadFavoriteSongs();
+                    
                 }
 
                 songReq.onerror = () => {
                     console.log("Error al eliminar la canción");
                 };
+
+                tx.oncomplete = () => {
+                    loadSavedSongs();
+                    loadFavoriteSongs();
+                }
 
             });
             
@@ -761,6 +805,18 @@ function clearSongCard() {
     endTime.textContent = "0:00";
     footerStartTime.textContent = "0:00";
     footerEndTime.textContent = "0:00";
+    
+    currentContext = null;
+    currentPlaylist = [];
+    currentIndex = -1;
+
+    inicioSection.style.background = `
+        linear-gradient(
+        to bottom,
+        var(--color-bg-surface),
+        var(--color-bg-main)
+    )
+    `;
 
     if (mainRange) {
         mainRange.value = 0;
@@ -788,25 +844,41 @@ function adjustFooterWidth() {
     footer.style.width = `calc(100vw - 280px - 60px - ${scrollbarWidth}px)`;
 }
 
-function updateCardColor(imageElement) {
-    const colorThief = new ColorThief();
-    
-    if (imageElement.complete) {
-        applyColor(imageElement);
-    } else {
-        imageElement.addEventListener('load', function() {
-            applyColor(imageElement);
-        });
-    }
-    
-    function applyColor(img) {
-        const color = colorThief.getColor(img);
-        
-        songCard.style.background = `linear-gradient(135deg, 
-            rgb(${color[0]}, ${color[1]}, ${color[2]}) 0%, 
-            rgba(${color[0]}, ${color[1]}, ${color[2]}, 0.6) 50%,
-            var(--color-bg-card) 100%)`;
-    }
+function applyColor(img) {
+
+    let colorThief = new ColorThief();
+    const palette = colorThief.getPalette(img, 5);
+
+    // 👉 elegir el color más "intenso"
+    const bestColor = palette.reduce((best, current) => {
+        const currentScore = getColorScore(current);
+        const bestScore = getColorScore(best);
+        return currentScore > bestScore ? current : best;
+    });
+
+    applyBackground(bestColor);
+}
+
+function getColorScore([r, g, b]) {
+    // saturación simple (qué tan "vivo" es el color)
+    return Math.max(r, g, b) - Math.min(r, g, b);
+}
+
+function applyShadow(color) {
+    songCard.style.boxShadow = `
+        0px 10px 30px rgba(${color[0]}, ${color[1]}, ${color[2]}, 0.6),
+        0px 0px 80px rgba(${color[0]}, ${color[1]}, ${color[2]}, 0.5)
+    `;
+}
+
+function applyBackground(color) {
+    inicioSection.style.background = `
+        linear-gradient(
+            to bottom,
+            rgba(${color[0]}, ${color[1]}, ${color[2]}, 0.4),
+            #141414
+        )
+    `;
 }
 
 //  Conectar eventos de los ranges
