@@ -1,23 +1,37 @@
 // inicializar db
-const request = indexedDB.open("myDB", 6);
+const request = indexedDB.open("myDB", 8);
 
 request.onupgradeneeded = (e) => {
     db = e.target.result
 
     if (!db.objectStoreNames.contains("songs")) {
-        db.createObjectStore("songs", { keyPath: "id", autoIncrement: true } )
+        db.createObjectStore("songs", { 
+            keyPath: "id",
+            autoIncrement: true 
+        });
+    }
+
+    if (db.objectStoreNames.contains("playlists")) {
+        db.createObjectStore("playlists", { 
+            keyPath: "playlistId", // 👈 nuevo nombre
+            autoIncrement: true 
+        });
     }
     
     let favoriteStore;
 
     if (!db.objectStoreNames.contains("favorites")) {
-        favoriteStore = db.createObjectStore("favorites", { keyPath: "songId" });
+        favoriteStore = db.createObjectStore("favorites", { 
+            keyPath: "songId" 
+        });
     } else {
         favoriteStore = e.target.transaction.objectStore("favorites");
     }
 
     if (!favoriteStore.indexNames.contains("order")) {
-        favoriteStore.createIndex("order", "order", { unique: false });
+        favoriteStore.createIndex("order", "order", {
+            unique: false 
+        });
     }
 
 }
@@ -26,6 +40,33 @@ request.onsuccess = (e) => {
     db = e.target.result;
     loadSavedSongs();
     loadFavoriteSongs();
+    loadSavedPlaylists();
+
+//     const tx = db.transaction("favorites", "readwrite");
+// const store = tx.objectStore("favorites");
+
+// const req = store.clear();
+
+// req.onsuccess = () => {
+//     console.log("ObjectStore limpiado");
+// };
+
+// req.onerror = () => {
+//     console.error("Error al limpiar");
+// };
+
+    // const tx = db.transaction("playlists", "readwrite");
+    // const store = tx.objectStore("playlists");
+
+    // const req = store.clear();
+
+    // req.onsuccess = () => {
+    //     console.log("ObjectStore limpiado");
+    // };
+
+    // req.onerror = () => {
+    //     console.error("Error al limpiar");
+    // };
 }
 
 //  SVG al inicio del archivo
@@ -47,6 +88,8 @@ const startTime = document.getElementById("start-time");
 const endTime = document.getElementById("end-time");
 const btnPlayPause = document.querySelector(".btn-playpause");
 const iconPlayPause = document.getElementById("icon-playpause");
+const btn_addPlaylist = document.getElementById("btn-add-playlist");
+const drop_zone = document.getElementById("guardados");
 
 const footer = document.querySelector("footer");
 const footerSongName = document.getElementById("footer-song-name");
@@ -102,6 +145,37 @@ function updatePlayPauseButtonWithState(isPlaying) {
         footerIconPlayPause.src = "assets/play.png";
     }
 }
+
+drop_zone.addEventListener("dragover", (e) => {
+
+    e.preventDefault();
+    e.stopPropagation();
+
+});
+drop_zone.addEventListener("drop", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const files = [...e.dataTransfer.files].filter(file => 
+        file.type.startsWith("audio/")
+    );
+
+    if (files.length === 0) return;
+
+    loadAndSaveSongOnDrop(files);
+});
+
+drop_zone.addEventListener("dragenter", () => {
+    drop_zone.classList.add("drag-active");
+});
+
+drop_zone.addEventListener("dragleave", () => {
+    drop_zone.classList.remove("drag-active");
+});
+
+drop_zone.addEventListener("drop", () => {
+    drop_zone.classList.remove("drag-active");
+});
 
 audio.addEventListener("play", () => {
     console.log("EVENTO PLAY disparado");
@@ -228,7 +302,9 @@ function saveAudio(song, file, picture) {
         if (currentContext === "saved") {
                 currentPlaylist.push(id)
         }
-        loadSavedSongs();
+        
+       
+        
     };
 }
 
@@ -292,55 +368,208 @@ function loadAndPlaySong(file) {
     });
 }
 
-function loadAndSaveSong() {
-    let file = inputFile.files[0]; 
-    
-    if (!file) return;
-    
-    currentFile = file;
+async function loadAndSaveSong() {
 
-    jsmediatags.read(file, {
-        onSuccess: function(tag) {
-            const { title, artist, picture } = tag.tags;
+    let files = [...inputFile.files];
+    const promises = [];
 
-            currentTitle = title || "Sin titulo";
-            currentArtist = artist || "Artista desconocido";
+    for (let file of files) {
 
-            let pictureUrl;
-            if (picture) {
-                let base64String = "";
-                for (let i = 0; i < picture.data.length; i++) {
-                    base64String += String.fromCharCode(picture.data[i]);
-                }
-                pictureUrl = `data:${picture.format};base64,${btoa(base64String)}`;
-            } else {
-                pictureUrl = "assets/default.jpeg";
-            }
-
-            let url = URL.createObjectURL(file);
-            const tempAudio = new Audio(url);
-            
-            tempAudio.addEventListener("loadedmetadata", () => {
-                const song = {
-                    title: currentTitle,
-                    artist: currentArtist,
-                    isFavorite: false,
-                    duration: formatTime(tempAudio.duration)
-                };
-                
-                saveAudio(song, currentFile, pictureUrl);
-                
-                URL.revokeObjectURL(url);
-                tempAudio.src = '';
-            });
-
-            setTimeout(adjustFooterWidth, 200);
-        },
-        onError: function(error) {
-            console.log(error);
+        if (!file) {
+            continue;
         }
-    });
+
+        const promise = new Promise((resolve) => {
+            jsmediatags.read(file, {
+                onSuccess: function(tag) {
+                    const { title, artist, picture } = tag.tags;
+
+                    const currentTitle = title || "Sin titulo";
+                    const currentArtist = artist || "Artista desconocido";
+
+                    let pictureUrl;
+
+                    if (picture) {
+                        
+                        let base64String = "";
+                        for (let i = 0; i < picture.data.length; i++) {
+                            base64String += String.fromCharCode(picture.data[i]);
+                        }
+                        pictureUrl = `data:${picture.format};base64,${btoa(base64String)}`;
+
+                    } else {
+                        pictureUrl = "assets/default.jpeg";
+                    }
+
+                    let url = URL.createObjectURL(file);
+                    const tempAudio = new Audio(url);
+
+                    tempAudio.addEventListener("loadedmetadata", () => {
+
+                        const song = {
+                            title: currentTitle,
+                            artist: currentArtist,
+                            isFavorite: false,
+                            duration: formatTime(tempAudio.duration)
+                        };
+
+                        saveAudio(song, file, pictureUrl);
+
+                        URL.revokeObjectURL(url);
+                        tempAudio.src = '';
+
+                        resolve();
+
+                    });
+
+                },
+                
+                onError: function(error) {
+                    console.log(error);
+                    resolve();
+                }
+            });
+        });
+
+        promises.push(promise);
+
+    }
+
+    await Promise.all(promises);
+
+    loadSavedSongs();
+    
 }
+
+async function loadAndSaveSongOnDrop(filesInput) {
+
+    let files = [...filesInput];
+    const promises = [];
+
+    for (let file of files) {
+
+        if (!file) {
+            continue;
+        }
+
+        const promise = new Promise((resolve) => {
+            jsmediatags.read(file, {
+                onSuccess: function(tag) {
+                    const { title, artist, picture } = tag.tags;
+
+                    const currentTitle = title || "Sin titulo";
+                    const currentArtist = artist || "Artista desconocido";
+
+                    let pictureUrl;
+
+                    if (picture) {
+                        
+                        let base64String = "";
+                        for (let i = 0; i < picture.data.length; i++) {
+                            base64String += String.fromCharCode(picture.data[i]);
+                        }
+                        pictureUrl = `data:${picture.format};base64,${btoa(base64String)}`;
+
+                    } else {
+                        pictureUrl = "assets/default.jpeg";
+                    }
+
+                    let url = URL.createObjectURL(file);
+                    const tempAudio = new Audio(url);
+
+                    tempAudio.addEventListener("loadedmetadata", () => {
+
+                        const song = {
+                            title: currentTitle,
+                            artist: currentArtist,
+                            isFavorite: false,
+                            duration: formatTime(tempAudio.duration)
+                        };
+
+                        saveAudio(song, file, pictureUrl);
+
+                        URL.revokeObjectURL(url);
+                        tempAudio.src = '';
+
+                        resolve();
+
+                    });
+
+                },
+                
+                onError: function(error) {
+                    console.log(error);
+                    resolve();
+                }
+            });
+        });
+
+        promises.push(promise);
+
+    }
+
+    await Promise.all(promises);
+
+    loadSavedSongs();
+    
+}
+
+// function loadAndSaveSong() {
+
+//     for (let i = 0; i < inputFile.files.length; i++) {
+
+        
+
+//         let file = inputFile.files[i];
+//         if (!file) continue;
+
+//         jsmediatags.read(file, {
+//             onSuccess: function(tag) {
+
+//                 const { title, artist, picture } = tag.tags;
+
+//                 const currentTitle = title || "Sin titulo";
+//                 const currentArtist = artist || "Artista desconocido";
+
+//                 let pictureUrl;
+
+//                 if (picture) {
+//                     let base64String = "";
+//                     for (let i = 0; i < picture.data.length; i++) {
+//                         base64String += String.fromCharCode(picture.data[i]);
+//                     }
+//                     pictureUrl = `data:${picture.format};base64,${btoa(base64String)}`;
+//                 } else {
+//                     pictureUrl = "assets/default.jpeg";
+//                 }
+
+//                 let url = URL.createObjectURL(file);
+//                 const tempAudio = new Audio(url);
+
+//                 tempAudio.addEventListener("loadedmetadata", () => {
+
+//                     const song = {
+//                         title: currentTitle,
+//                         artist: currentArtist,
+//                         isFavorite: false,
+//                         duration: formatTime(tempAudio.duration)
+//                     };
+
+//                     saveAudio(song, file, pictureUrl);
+
+//                     URL.revokeObjectURL(url);
+//                     tempAudio.src = '';
+//                 });
+
+//                 setTimeout(adjustFooterWidth, 200);
+//             },
+
+//             onError: function(error) {
+//                 console.log(error);
+//             }
+//         });
+//     }
+// }
 
 function formatTime(seconds) {
     if (isNaN(seconds)) return "0:00";
@@ -453,30 +682,255 @@ if (footerBtnPlayPause) footerBtnPlayPause.addEventListener("click", playPause);
 const navigationButtons = document.querySelectorAll(".navigation-button");
 const sections = document.querySelectorAll("section");
 
+function showSection(sectionId) {
+    sections.forEach(section => {
+        section.style.display = "none";
+    });
+
+    navigationButtons.forEach(btn => {
+        btn.classList.remove("active");
+
+        if (btn.dataset.section === sectionId) {
+            btn.classList.add("active");
+        }
+    });
+
+    const section = document.getElementById(sectionId);
+    section.style.display = "flex";
+
+    const isInicio = sectionId === "inicio";
+    const shouldShowFooter = !isInicio && currentSongId !== null;
+
+    toggleFooter(shouldShowFooter);
+    setTimeout(adjustFooterWidth, 200);
+}
+
 navigationButtons.forEach(button => {
     button.addEventListener("click", () => {
-        sections.forEach(section => {
-            section.style.display = "none";
-        })
-        
-        navigationButtons.forEach(btn => {
-            btn.classList.remove("active");
-        })
-        
-        button.classList.add("active");
-        
-        const section = document.getElementById(button.dataset.section);
-        section.style.display = "flex"
-
-        const isInicio = button.dataset.section === "inicio";
-        const shouldShowFooter = !isInicio && currentSongId !== null;
-        
-        toggleFooter(shouldShowFooter);
-        setTimeout(adjustFooterWidth, 200); 
+        showSection(button.dataset.section);
     });
 });
 
-navigationButtons[2].click();
+showSection("playlists");
+
+const section_playlist = document.getElementById("playlists");
+const section_addplaylist = document.getElementById("playlist-add");
+const btn_cancel = document.querySelector(".btn-cancel");
+
+const btn_primary = document.querySelector(".btn-primary");
+const btn_secondary = document.querySelector(".btn-secondary");
+
+const playlistName = document.getElementById("playlistName");
+const form_info = document.querySelector(".form-info")
+
+let formListExists = false;
+
+btn_secondary.addEventListener("click", () => {
+    showSection("playlists");
+    playlistName.value = "";
+});
+
+btn_cancel.addEventListener("click", () => {
+    showSection("playlists");
+    playlistName.value = "";
+});
+
+btn_addPlaylist.addEventListener("click", () => {
+    showSection("playlist-add");
+    loadSelectableSavedSongs();
+});
+
+const form = document.querySelector("form");
+
+form.addEventListener("submit", (e) => {
+
+    e.preventDefault();
+    const form_list = document.querySelector(".form-list");
+    const seleccionados = form_list.querySelectorAll("input[type='checkbox']:checked");
+    let arraySeleccionados = Array.from(seleccionados).map(cb => Number(cb.value));
+    const playlist = {
+        name: playlistName.value.trim(),
+        songsId: arraySeleccionados
+    };
+
+    const tx = db.transaction("playlists", "readwrite");
+    const store = tx.objectStore("playlists");
+    
+    const req = store.add(playlist);
+
+    req.onsuccess = () => {
+
+        console.log("se agrego con exito la nueva playlist");
+        loadSavedPlaylists() 
+        
+
+    }
+
+    req.oncomplete = () => {
+
+        playlistName.value = "";
+
+    }
+
+    showSection("playlists");
+
+});
+
+function loadSavedPlaylists() {
+
+    const playlist_list = document.querySelector(".playlist-list");
+    playlist_list.innerHTML = "";
+
+    const tx = db.transaction("playlists", "readonly");
+    const store = tx.objectStore("playlists");
+
+    const req = store.getAll();
+
+    req.onsuccess = () => {
+        const playlists = req.result;
+
+        if (playlists.length === 0) {
+
+            const noPlaylistHTML = document.createElement("div");
+
+            noPlaylistHTML.classList.add("no-songs-item");
+            
+            noPlaylistHTML.innerHTML = `
+                                        <svg width="800px" height="800px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <path d="M11 14L3 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                                            <path d="M11 18H3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                                            <path d="M18.875 14.1183C20.5288 15.0732 21.3558 15.5506 21.4772 16.2394C21.5076 16.4118 21.5076 16.5881 21.4772 16.7604C21.3558 17.4492 20.5288 17.9266 18.875 18.8815C17.2212 19.8363 16.3942 20.3137 15.737 20.0745C15.5725 20.0147 15.4199 19.9265 15.2858 19.814C14.75 19.3644 14.75 18.4096 14.75 16.4999C14.75 14.5902 14.75 13.6354 15.2858 13.1858C15.4199 13.0733 15.5725 12.9852 15.737 12.9253C16.3942 12.6861 17.2212 13.1635 18.875 14.1183Z" stroke="currentColor" stroke-width="1.5"/>
+                                            <path d="M3 6L13.5 6M20 6L17.75 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                                            <path d="M20 10L9.5 10M3 10H5.25" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                                        </svg>
+                                        <p>Aún no has creado ninguna playlist.</p>
+                                    `
+
+            playlist_list.appendChild(noPlaylistHTML);
+
+        }
+
+        playlists.forEach(playlist => {
+            const playlistHTML = document.createElement("div");
+
+            console.log("id de la playlist"+playlist.playlistId);
+
+            playlistHTML.innerHTML = `
+                <div>
+                    <div>
+                        <img src="">
+                    </div>
+                    <div>
+                        <p>${playlist.name}</p>
+                        <p>${playlist.songsId.length} canciones</p>
+                    </div>
+                </div>
+            `;
+
+            playlist_list.appendChild(playlistHTML);
+        });
+
+    };
+}
+
+function validateForm() {
+
+    const form_list = document.querySelector(".form-list");
+
+    if (!formListExists && !form_list) {
+        return
+    } 
+
+    let isName = playlistName.value.trim().length > 0;
+    const seleccionados = form_list.querySelectorAll("input[type='checkbox']:checked");
+    let isPlaylist = seleccionados.length > 0;
+
+    if (isName && isPlaylist) {
+        btn_primary.disabled = false;
+        btn_primary.classList.add("active")
+    } else {
+        btn_primary.disabled = true;
+        btn_primary.classList.remove("active")
+    }
+
+}
+
+function loadSelectableSavedSongs() {
+
+    formListExists = false;
+
+    const oldLists = form_info.querySelectorAll(".form-list");
+    oldLists.forEach(list => list.remove());
+    const oldMessage = form_info.querySelectorAll(".warning-message");
+    oldMessage.forEach(message => message.remove());
+
+    const tx = db.transaction("songs", "readonly");
+    const store = tx.objectStore("songs");
+
+    const req = store.getAll();
+
+    const form_list = document.createElement("div");
+    form_list.classList.add("form-list");
+
+    req.onsuccess = () => {
+        const songs = req.result;
+
+        if (songs.length === 0) {
+
+            warning_message = document.createElement("p");
+            warning_message.classList.add("warning-message");
+            warning_message.innerHTML = "No tienes canciones guardadas. Añade algunas primero."
+            form_info.appendChild(warning_message);
+            return;
+        }
+
+        songs.forEach(song => {
+
+            formListExists = true;
+
+            const songHTML = document.createElement("div");
+            songHTML.value = song.id
+
+            songHTML.innerHTML = `
+                <label class="checkbox-label">
+                    <input type="checkbox" value="${song.id}">
+                    <span class="checkmark"></span>
+
+                    <div class="playlist-song-info">
+                        <span class="playlist-song-name">${song.title}</span>
+                        <span class="playlist-song-artist">${song.artist}</span>
+                    </div>
+                </label>
+            `;
+
+            form_list.appendChild(songHTML);
+        });
+
+        form_info.appendChild(form_list);
+        activeCheckBoxEvents(".form-list .checkbox-label");
+    };
+}
+
+playlistName.addEventListener("input", () => {
+    validateForm();
+});
+
+function activeCheckBoxEvents(selector) {
+
+    const checkbox_items = document.querySelectorAll(selector);
+
+    checkbox_items.forEach(checkbox_item => {
+        const checkbox = checkbox_item.querySelector("input[type='checkbox']")
+
+        checkbox.addEventListener("change", () => {
+
+            validateForm();
+            
+
+        });
+
+    });
+}
 
 function loadSavedSongs() {
     const song_list = document.querySelector(".song-list");
@@ -562,6 +1016,9 @@ function loadFavoriteSongs() {
         const favorites = favReq.result;
         const songs = songReq.result;
 
+        console.log("hoal");
+        console.log(favorites);
+
         if (favorites.length === 0) {
 
             const noSongsHTML = document.createElement("div");
@@ -576,6 +1033,7 @@ function loadFavoriteSongs() {
                                     `
 
             favorite_list.appendChild(noSongsHTML);
+            return;
 
         }
 
@@ -617,6 +1075,8 @@ function loadFavoriteSongs() {
     };
 }
 
+
+
 function activeItemEvents(selector) {
     const song_items = document.querySelectorAll(selector);
 
@@ -630,15 +1090,34 @@ function activeItemEvents(selector) {
         if (".song-list .song-item" === selector) {
 
             btn_delete.addEventListener("click", () => {
-                const tx = db.transaction(["songs", "favorites"], "readwrite");
+                const tx = db.transaction(["songs", "favorites", "playlists"], "readwrite");
                 const songStore = tx.objectStore("songs");
                 const favoriteStore = tx.objectStore("favorites");
+                const playlistStore = tx.objectStore("playlists");
                 const songReq = songStore.delete(id);
 
                 songReq.onsuccess = () => {
-                    
+
                     console.log("Cancion eliminada");
+
                     favoriteStore.delete(id);
+
+                    const req = playlistStore.getAll();
+
+                     req.onsuccess = () => {
+                        req.result.forEach(pl => {
+
+                            pl.songsId = pl.songsId.filter(song => song !== Number(id));
+
+                            if (pl.songsId.length === 0) {
+                                playlistStore.delete(pl.playlistId);
+                            } else {
+                                playlistStore.put(pl);
+                            }
+
+                        });
+                    };
+
                     currentPlaylist = currentPlaylist.filter(item => item !== id);
 
                     if (currentSongId === id) {
@@ -654,6 +1133,7 @@ function activeItemEvents(selector) {
                 tx.oncomplete = () => {
                     loadSavedSongs();
                     loadFavoriteSongs();
+                    loadSavedPlaylists();
                 }
 
             });
