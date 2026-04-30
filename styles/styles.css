@@ -375,6 +375,20 @@ input[type=range]:hover::-moz-range-thumb {
     flex-direction: column;
 }
 
+.playlist-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 30px;
+    justify-items: stretch;
+}
+
+.playlist-list.empty {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+
 .no-songs-item {
 
     display: flex;
@@ -933,4 +947,285 @@ form .form-group {
 /* animación suave */
 #guardados {
     transition: all 0.2s ease;
+}
+
+#playlist-view {
+    display: flex;
+    flex-direction: row;
+    height: calc(100vh - 40px - 8rem);  /* ← Resta el padding del body y la altura del footer */
+    width: 100%;
+    overflow: hidden;
+    align-items: stretch;
+}
+
+
+
+
+.playlist-view-card {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 16px;
+    padding: 24px;
+    min-width: 220px;
+    max-width: 260px;
+}
+
+.playlist-view-cover {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    border-radius: 16px;
+    background: linear-gradient(to bottom, var(--color-accent), #8b11c0);
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+}
+
+/* icono musical centrado */
+.playlist-view-cover::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 56px;
+    height: 56px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z'/%3E%3C/svg%3E");
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    opacity: 0.7;
+}
+
+.playlist-view-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: 100%;
+}
+
+.playlist-view-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.playlist-view-name {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--color-text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.playlist-view-count {
+    font-size: 13px;
+    color: var(--color-text-secondary);
+}
+
+.playlist-view-play {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background-color: var(--color-accent);
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s ease, background-color 0.2s ease;
+    box-shadow: 0 4px 16px rgba(246, 58, 16, 0.4);
+}
+
+.playlist-view-play:hover {
+    transform: scale(1.08);
+    background-color: var(--color-accent-hover);
+}
+
+.playlist-view-play svg {
+    width: 24px;
+    height: 24px;
+    color: white;
+    margin-left: 3px; /* centra visualmente el triángulo */
+}
+
+/* SIDEBAR */
+.menu-view-playlist {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.3);
+
+    min-width: 320px;
+    max-width: 320px;
+    height: 100%;  /* ← AGREGADO: Esto es lo clave */
+
+    overflow-y: auto;
+    overflow-x: hidden;
+
+    padding: 20px 0;
+    box-sizing: border-box;
+    position: relative;
+}
+
+.playlist-back-btn {
+    position: absolute;
+    top: 20px;   /* ← antes era 50px, lo bajamos */
+    left: 20px;
+
+    width: 40px;
+    height: 40px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border: none;
+    border-radius: 50%;
+    
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+
+    cursor: pointer;
+    transition: 0.2s ease;
+}
+
+.playlist-back-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: scale(1.05);
+}
+
+.playlist-back-btn svg {
+    width: 20px;
+    height: 20px;
+}
+
+/* CLAVE DEL FIX */
+.playlist-song-list {
+    flex: 1;
+    height: 100%;
+
+    min-height: 0;
+
+    overflow-y: auto;
+
+    display: flex;
+    flex-direction: column;
+
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.playlist-song-list.empty {
+    flex: 1;
+    height: 100%;
+
+    min-height: 0;
+
+    overflow-y: auto;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+/* CONTENIDO PRINCIPAL (IMPORTANTE SI EXISTE) */
+.playlist-content {
+    flex: 1;
+    height: 100%;
+    overflow-y: auto;
+    padding: 20px;
+}
+
+.playlist-item {
+    width: 230px;
+    background: #1f1f1f;
+    border-radius: 16px;
+    padding: 12px;
+    color: white;
+    font-family: Arial, sans-serif;
+    cursor: pointer;
+    background: #292929;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+
+    border: 1px solid rgba(255, 255, 255, 0.15);
+
+    /* sombra base (luego JS la reemplaza) */
+    box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.3);
+    transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.playlist-item:hover {
+    transform: translateY(-4px);
+    
+    background: rgba(255, 255, 255, 0.08);
+}
+
+/* 🔥 portada */
+.playlist-cover {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    border-radius: 12px;
+
+    background: linear-gradient(to bottom, var(--color-accent), #8b11c0);
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    margin-bottom: 10px;
+    position: relative;
+    overflow: hidden;
+}
+
+/* icono musical */
+.playlist-cover::before {
+    content: "";
+    width: 42px;
+    height: 42px;
+
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z'/%3E%3C/svg%3E");
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+
+    opacity: 0.8;
+    transition: transform 0.3s ease;
+}
+
+/* efecto hover tipo "zoom suave" */
+.playlist-item:hover .playlist-cover::before {
+    transform: scale(1.1);
+}
+
+/* información */
+.playlist-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.playlist-name {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.playlist-count {
+    margin: 0;
+    font-size: 13px;
+    color: #b3b3b3;
 }
