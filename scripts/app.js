@@ -218,10 +218,42 @@ audio.addEventListener("ended", () => {
 function updateSongListUIWithState(isPlaying) {
     console.log("updateSongListUI llamado con isPlaying:", isPlaying);
     console.log("currentSongId:", currentSongId);
+    console.log("currentContext:", currentContext);
     
-    const song_items = document.querySelectorAll(".song-item");
+    // Determinar qué selector usar según el contexto
+    let contextSelector = "";
     
-    song_items.forEach(song_item => {
+    if (currentContext === "saved") {
+        contextSelector = ".song-list";
+    } else if (currentContext === "favorites") {
+        contextSelector = ".favorite-list";
+    } else if (currentContext === "playlist") {
+        contextSelector = ".playlist-song-list";
+    }
+    
+    // Si no hay contexto válido, limpiar todo
+    if (!contextSelector) {
+        document.querySelectorAll(".song-item").forEach(item => {
+            const picture_content = item.querySelector(".picture-content");
+            const song_title = item.querySelector(".song-title");
+            song_title?.classList.remove("selected");
+            picture_content?.classList.remove("active");
+        });
+        return;
+    }
+    
+    // Primero, limpiar TODOS los items de TODAS las secciones
+    document.querySelectorAll(".song-item").forEach(item => {
+        const picture_content = item.querySelector(".picture-content");
+        const song_title = item.querySelector(".song-title");
+        song_title?.classList.remove("selected");
+        picture_content?.classList.remove("active");
+    });
+    
+    // Luego, actualizar SOLO los items del contexto actual
+    const contextItems = document.querySelectorAll(`${contextSelector} .song-item`);
+    
+    contextItems.forEach(song_item => {
         const picture_content = song_item.querySelector(".picture-content");
         const song_title = song_item.querySelector(".song-title");
         const id = Number(song_item.dataset.id);
@@ -229,17 +261,14 @@ function updateSongListUIWithState(isPlaying) {
         const isCurrentSong = currentSongId === id;
         
         if (isCurrentSong) {
-                song_title.classList.add("selected");
+            song_title.classList.add("selected");
             if (isPlaying) {
-                console.log("Agregando clase active al item", id);
+                console.log("Agregando clase active al item", id, "en contexto", currentContext);
                 picture_content.classList.add("active");
             } else {
                 console.log("Removiendo clase active del item", id);
                 picture_content.classList.remove("active");
             }
-        } else {
-            song_title.classList.remove("selected");
-            picture_content.classList.remove("active");
         }
     });
 }
@@ -716,10 +745,9 @@ form.addEventListener("submit", (e) => {
     e.preventDefault();
     const form_list = document.querySelector(".form-list");
     const seleccionados = form_list.querySelectorAll("input[type='checkbox']:checked");
-    let arraySeleccionados = Array.from(seleccionados).map(cb => Number(cb.value));
     const playlist = {
         name: playlistName.value.trim(),
-        songsId: arraySeleccionados
+        songsId: selectedSongsOrder
     };
 
     const tx = db.transaction("playlists", "readwrite");
@@ -837,21 +865,26 @@ function openPlaylist(playlistId) {
 
         if (!playlist) return;
 
-        currentPlaylist = playlist.songsId || [];
-        currentPlaylistId = playlist.playlistId;
-        currentContext = "playlist";
-
+        const playlistViewCard = document.querySelector(".playlist-view-card");
+        playlistViewCard.dataset.id = playlist.playlistId;
         const playlistViewName = document.querySelector(".playlist-view-name");
         playlistViewName.textContent = playlist.name;
         const playlistViewCount = document.querySelector(".playlist-view-count");
         playlistViewCount.textContent = playlist.songsId.length + " canciones";
 
-        renderPlaylistSongs(currentPlaylist);
+        // ✅ Pasar callback que se ejecuta DESPUÉS de renderizar
+        renderPlaylistSongs(playlist.songsId, () => {
+            // Si esta playlist es la que se está reproduciendo, sincronizar UI
+            if (currentContext === "playlist" && currentPlaylistId === Number(playlistId)) {
+                updateSongListUI();
+            }
+        });
+        
         showSection("playlist-view");
     };
 }
 
-function renderPlaylistSongs(songIds) {
+function renderPlaylistSongs(songIds, onComplete) {
 
     const song_list = document.querySelector(".playlist-song-list");
     song_list.innerHTML = "";
@@ -865,12 +898,15 @@ function renderPlaylistSongs(songIds) {
     song_list.classList.remove("empty");
 
     if (!songIds || songIds.length === 0) {
-
         song_list.classList.add("empty");
         showEmpty();
+        if (onComplete) onComplete(); // ✅ Ejecutar callback incluso si está vacío
         return;
     }
 
+    // Mantener el orden original de la playlist
+    const songMap = new Map();
+    
     songIds.forEach(id => {
         const req = store.get(id);
 
@@ -879,7 +915,7 @@ function renderPlaylistSongs(songIds) {
             loaded++;
 
             if (song) {
-                songs.push(song);
+                songMap.set(id, song);
             }
 
             // cuando TODOS terminaron
@@ -891,12 +927,16 @@ function renderPlaylistSongs(songIds) {
 
     function render() {
 
-        if (songs.length === 0) {
+        if (songMap.size === 0) {
             showEmpty();
+            if (onComplete) onComplete(); // ✅ Ejecutar callback
             return;
         }
 
-        songs.forEach(song => {
+        // Renderizar en el orden de la playlist (songIds)
+        songIds.forEach(id => {
+            const song = songMap.get(id);
+            if (!song) return;
 
             const songHTML = document.createElement("div");
 
@@ -918,6 +958,10 @@ function renderPlaylistSongs(songIds) {
             song_list.appendChild(songHTML);
         });
                     
+        activeItemEvents(".playlist-song-list .song-item");
+        
+        // ✅ Ejecutar callback después de agregar eventos
+        if (onComplete) onComplete();
     }
 
     function showEmpty() {
@@ -961,6 +1005,8 @@ function validateForm() {
 }
 
 function loadSelectableSavedSongs() {
+
+    selectedSongsOrder = [];
 
     formListExists = false;
 
@@ -1020,18 +1066,27 @@ playlistName.addEventListener("input", () => {
     validateForm();
 });
 
+let selectedSongsOrder = [];
+
 function activeCheckBoxEvents(selector) {
 
     const checkbox_items = document.querySelectorAll(selector);
 
     checkbox_items.forEach(checkbox_item => {
-        const checkbox = checkbox_item.querySelector("input[type='checkbox']")
+        const checkbox = checkbox_item.querySelector("input[type='checkbox']");
+        const songId = Number(checkbox.value);
 
         checkbox.addEventListener("change", () => {
 
-            validateForm();
-            
+            if (checkbox.checked) {
+                // 👉 agregar al final (orden de selección)
+                selectedSongsOrder.push(songId);
+            } else {
+                // 👉 quitar si se deselecciona
+                selectedSongsOrder = selectedSongsOrder.filter(id => id !== songId);
+            }
 
+            validateForm();
         });
 
     });
@@ -1187,12 +1242,53 @@ function activeItemEvents(selector) {
 
     song_items.forEach(song_item => {
         const picture_content = song_item.querySelector(".picture-content");
-        const btn_favorite = song_item.querySelector(".btn-favorite");
         const id = Number(song_item.dataset.id);
 
         const btn_delete = song_item.querySelector(".btn-delete");
+        const btn_favorite = song_item.querySelector(".btn-favorite");
 
-        if (".song-list .song-item" === selector) {
+        let isSongList = ".song-list .song-item" === selector;
+        let isFavoriteList = ".favorite-list .song-item" === selector;
+
+        picture_content.addEventListener("click", () => {
+            // Determinar el contexto de este item
+            let itemContext = null;
+            if (isSongList) {
+                itemContext = "saved";
+            } else if (isFavoriteList) {
+                itemContext = "favorites";
+            } else if (selector === ".playlist-song-list .song-item") {
+                itemContext = "playlist";
+            }
+            
+            const isCurrentSong = currentSongId === id;
+            const isSameContext = currentContext === itemContext;
+            
+            // Solo pausar si es la misma canción Y el mismo contexto
+            if (isCurrentSong && isSameContext) {
+                playPause();
+            } else {
+                // Nueva reproducción (cambio de canción o cambio de contexto)
+                currentSongId = id;
+
+                buildCurrentPlaylist();
+
+                currentIndex = currentPlaylist.indexOf(id);
+
+                updateSongListUI();
+
+                const tx = db.transaction("songs", "readonly");
+                const store = tx.objectStore("songs");
+                const req = store.get(id);
+
+                req.onsuccess = () => {
+                    const song = req.result;
+                    if (song) loadAndPlaySong(song.file);
+                };
+            }
+        });
+
+        if (isSongList) {
 
             btn_delete.addEventListener("click", () => {
                 const tx = db.transaction(["songs", "favorites", "playlists"], "readwrite");
@@ -1240,89 +1336,67 @@ function activeItemEvents(selector) {
             });
             
         }
-        
-        btn_favorite.addEventListener("click", () => {
-            const tx = db.transaction(["songs", "favorites"], "readwrite");
-            const songStore = tx.objectStore("songs");
-            const favoriteStore = tx.objectStore("favorites");
-            const songReq = songStore.get(id);
 
-            songReq.onsuccess = () => {
-                const song = songReq.result;
+        if (isSongList || isFavoriteList) {
+            btn_favorite.addEventListener("click", () => {
+                const tx = db.transaction(["songs", "favorites"], "readwrite");
+                const songStore = tx.objectStore("songs");
+                const favoriteStore = tx.objectStore("favorites");
+                const songReq = songStore.get(id);
 
-                if (!song) {
-                    console.log("La canción no existe");
-                    return;
-                }
+                songReq.onsuccess = () => {
+                    const song = songReq.result;
 
-                song.isFavorite = !song.isFavorite;
-
-                document.querySelectorAll(`[data-id="${id}"] .btn-favorite`).forEach(btn => {
-                    if (song.isFavorite) {
-                        btn.innerHTML = svg_favorite;
-                        btn.classList.add("active");
-                    } else {
-                        btn.innerHTML = svg_nofavorite;
-                        btn.classList.remove("active");
-                    }
-                });
-
-                songStore.put(song);
-                
-                if (!song.isFavorite) {
-                    favoriteStore.delete(id);
-                    
-                    const favoriteItem = document.querySelector(`.favorite-list [data-id="${id}"]`);
-                    if (favoriteItem) {
-                        favoriteItem.remove();
+                    if (!song) {
+                        console.log("La canción no existe");
+                        return;
                     }
 
-                } else {
-                    favoriteStore.put({
-                        songId: id,
-                        order: Date.now()
+                    song.isFavorite = !song.isFavorite;
+
+                    document.querySelectorAll(`[data-id="${id}"] .btn-favorite`).forEach(btn => {
+                        if (song.isFavorite) {
+                            btn.innerHTML = svg_favorite;
+                            btn.classList.add("active");
+                        } else {
+                            btn.innerHTML = svg_nofavorite;
+                            btn.classList.remove("active");
+                        }
                     });
-                }
-            };
 
-            songReq.onerror = () => {
-                console.log("Error al procesar favorito");
-            };
+                    songStore.put(song);
+                    
+                    if (!song.isFavorite) {
+                        favoriteStore.delete(id);
+                        
+                        const favoriteItem = document.querySelector(`.favorite-list [data-id="${id}"]`);
+                        if (favoriteItem) {
+                            favoriteItem.remove();
+                        }
 
-            tx.oncomplete = () => {
-                console.log("Favorito actualizado correctamente");
-                loadFavoriteSongs();
-            };
-
-            tx.onerror = () => {
-                console.log("Error en la transacción de favoritos");
-            };
-        });
-
-        picture_content.addEventListener("click", () => {
-            const isCurrentSong = currentSongId === id;
-        
-            if (isCurrentSong) {
-                playPause();
-            } else {
-                currentSongId = id;
-        
-                buildCurrentPlaylist(); // ← AQUÍ SÍ, porque el usuario inició una nueva reproducción
-        
-                currentIndex = currentPlaylist.indexOf(id);
-        
-                updateSongListUI();
-        
-                const tx = db.transaction("songs", "readonly");
-                const store = tx.objectStore("songs");
-                const req = store.get(id);
-        
-                req.onsuccess = () => {
-                    const song = req.result;
-                    if (song) loadAndPlaySong(song.file);
+                    } else {
+                        favoriteStore.put({
+                            songId: id,
+                            order: Date.now()
+                        });
+                    }
                 };
-            }
-        });
+
+                songReq.onerror = () => {
+                    console.log("Error al procesar favorito");
+                };
+
+                tx.oncomplete = () => {
+                    console.log("Favorito actualizado correctamente");
+                    loadFavoriteSongs();
+                };
+
+                tx.onerror = () => {
+                    console.log("Error en la transacción de favoritos");
+                };
+            });
+        }
+
     });
 }
 
@@ -1463,31 +1537,41 @@ if (footerRange) {
 }
 
 function buildCurrentPlaylist() {
-    const activeButton = document.querySelector('.navigation-button.active');
-    const section = activeButton?.dataset.section;
+    // Detectar qué sección está visible (no solo el botón activo)
+    const visibleSection = Array.from(sections).find(s => s.style.display === "flex");
+    const sectionId = visibleSection?.id;
  
     let selector = "";
+    let newContext = null;
  
-    if (section === "guardados") {
-        currentContext = "saved";
+    if (sectionId === "guardados") {
+        newContext = "saved";
         selector = ".song-list .song-item";
     } 
-    else if (section === "favoritos") {
-        currentContext = "favorites";
+    else if (sectionId === "favoritos") {
+        newContext = "favorites";
         selector = ".favorite-list .song-item";
-    } else if (section === "playlist-view") {  // ← AQUÍ ESTABA EL ERROR: era "playlist" pero debe ser "playlist-view"
-        currentContext = "playlist";
+    } 
+    else if (sectionId === "playlist-view") {  
+        const playlistViewCard = document.querySelector(".playlist-view-card");
+        const viewPlaylistId = playlistViewCard ? Number(playlistViewCard.dataset.id) : null;
+        
+        newContext = "playlist";
         selector = ".playlist-song-list .song-item";
+        
+        // Actualizar el ID de la playlist actual
+        currentPlaylistId = viewPlaylistId;
     }
     else {
         // Si no hay contexto válido, NO resetear la playlist actual
         return;
     }
  
+    // Actualizar el contexto y reconstruir la cola
+    currentContext = newContext;
     const items = document.querySelectorAll(selector);
     currentPlaylist = Array.from(items).map(item => Number(item.dataset.id));
 }
-
 function updateMainOverflow(sectionId) {
     const main = document.querySelector("main");
     const footer = document.querySelector("footer");
@@ -1563,5 +1647,67 @@ window.addEventListener("resize", () => {
         updateMainOverflow(sectionId);
     } else {
         adjustFooterWidth();
+    }
+});
+
+const btnPlayPlaylist = document.querySelector(".playlist-view-play");
+
+btnPlayPlaylist.addEventListener("click", () => {
+    const playlistViewCard = document.querySelector(".playlist-view-card");
+    const viewPlaylistId = Number(playlistViewCard.dataset.id);
+    
+    // Verificar si ya está reproduciendo ESTA playlist específica
+    const isPlayingThisPlaylist = currentContext === "playlist" && 
+                                   currentPlaylistId === viewPlaylistId && 
+                                   currentSongId !== null;
+
+    if (isPlayingThisPlaylist) {
+
+        if (isAudioPlaying()) {
+
+            btnPlayPlaylist.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                                            <path d="M8 5v14l11-7z"/>
+                                        </svg>`
+
+            
+            
+        } else {
+
+            btnPlayPlaylist.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                                            <path d="M7 5h3v14H7zM14 5h3v14h-3z"/>
+                                        </svg>`
+            
+        }
+
+        // Solo pausar/reanudar
+        playPause();
+    } else {
+
+        btnPlayPlaylist.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                                            <path d="M7 5h3v14H7zM14 5h3v14h-3z"/>
+                                        </svg>`
+
+        // ✅ Reconstruir la cola desde los items del DOM (igual que buildCurrentPlaylist)
+        currentContext = "playlist";
+        currentPlaylistId = viewPlaylistId;
+        
+        const items = document.querySelectorAll(".playlist-song-list .song-item");
+        currentPlaylist = Array.from(items).map(item => Number(item.dataset.id));
+        
+        if (currentPlaylist.length === 0) return;
+        
+        currentSongId = currentPlaylist[0];
+        currentIndex = 0;
+
+        updateSongListUI();
+
+        const tx = db.transaction("songs", "readonly");
+        const store = tx.objectStore("songs");
+        const req = store.get(currentSongId);
+
+        req.onsuccess = () => {
+            const song = req.result;
+            if (song) loadAndPlaySong(song.file);
+        };
     }
 });
