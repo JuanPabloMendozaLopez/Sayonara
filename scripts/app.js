@@ -80,6 +80,7 @@ const svg_nofavorite = `<svg width="800px" height="800px" viewBox="0 0 24 24" fi
 const inputFile = document.querySelector("input[type=file]");
 const audio = document.getElementById("audio");
 
+const btnLyrics = document.getElementById('btn-lyrics');
 const songCard = document.querySelector('.song-card');
 const albumPortrait = document.querySelector(".album-portrait");
 const songName = document.getElementById("song-name");
@@ -210,9 +211,15 @@ audio.addEventListener("pause", () => {
 });
 
 audio.addEventListener("ended", () => {
+    console.log("EVENTO ENDED disparado");
     updatePlayPauseButtonWithState(false);
     updateSongListUIWithState(false);
-    playNext();
+
+    let lastIndex = currentPlaylist.length - 1;
+    if (lastIndex !== currentIndex) {
+        playNext();
+    }
+    
 });
 
 function updateSongListUIWithState(isPlaying) {
@@ -300,6 +307,8 @@ function timeUpdate() {
         footerRange.value = progress;
         updateRange(footerRange);
     }
+
+    syncLyrics(audio.currentTime);
 }
 
 function loadedMetaData() {
@@ -405,6 +414,10 @@ function loadAndPlaySong(file) {
 
             const activeButton = document.querySelector('.navigation-button.active');
             const isInicio = activeButton?.dataset.section === "inicio";
+
+            resetLyrics();
+
+            obtenerLetra(currentTitle, currentArtist);
             
             toggleFooter(!isInicio);
         },
@@ -823,8 +836,15 @@ function loadSavedPlaylists() {
                 <div class="playlist-item" data-id="${playlist.playlistId}">
                     <div class="playlist-cover"></div>
                     <div class="playlist-info">
-                        <p class="playlist-name">${playlist.name}</p>
-                        <p class="playlist-count">${playlist.songsId.length} canciones</p>
+                        <div>
+                            <p class="playlist-name">${playlist.name}</p>
+                            <p class="playlist-count">${playlist.songsId.length} canciones</p>
+                        </div>
+                        <button>
+                            <svg width="800px" height="800px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M18 6L17.1991 18.0129C17.129 19.065 17.0939 19.5911 16.8667 19.99C16.6666 20.3412 16.3648 20.6235 16.0011 20.7998C15.588 21 15.0607 21 14.0062 21H9.99377C8.93927 21 8.41202 21 7.99889 20.7998C7.63517 20.6235 7.33339 20.3412 7.13332 19.99C6.90607 19.5911 6.871 19.065 6.80086 18.0129L6 6M4 6H20M16 6L15.7294 5.18807C15.4671 4.40125 15.3359 4.00784 15.0927 3.71698C14.8779 3.46013 14.6021 3.26132 14.2905 3.13878C13.9376 3 13.523 3 12.6936 3H11.3064C10.477 3 10.0624 3 9.70951 3.13878C9.39792 3.26132 9.12208 3.46013 8.90729 3.71698C8.66405 4.00784 8.53292 4.40125 8.27064 5.18807L8 6M14 10V17M10 10V17" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </button>
                     </div>
                 </div>
             `;
@@ -843,13 +863,41 @@ function activePlaylistItemEvents(selector) {
 
     playlistItems.forEach(item => {
 
+        let id = Number(item.dataset.id);
+
         item.addEventListener("click", () => {
-            openPlaylist(item.dataset.id);
+            openPlaylist(id);
             
         });
 
-    });
+        const button = item.querySelector("button");
 
+        button.addEventListener("click", (e) => {
+
+            e.stopPropagation();
+
+            const tx = db.transaction("playlists", "readwrite");
+            const playlistStore = tx.objectStore("playlists");
+            const req = playlistStore.delete(id);
+
+            req.onsuccess = () => {
+
+                console.log("Playlist eliminada");
+                clearPlaylistView(id)
+                
+            }
+
+            req.onerror = () => {
+                console.log("Error al eliminar la playlist");
+            };
+
+            tx.oncomplete = () => {
+                loadSavedPlaylists();
+            }
+
+        })
+
+    });
 
 }
 
@@ -872,7 +920,7 @@ function openPlaylist(playlistId) {
         const playlistViewCount = document.querySelector(".playlist-view-count");
         playlistViewCount.textContent = playlist.songsId.length + " canciones";
 
-        // ✅ Pasar callback que se ejecuta DESPUÉS de renderizar
+        // Pasar callback que se ejecuta DESPUÉS de renderizar
         renderPlaylistSongs(playlist.songsId, () => {
             // Si esta playlist es la que se está reproduciendo, sincronizar UI
             if (currentContext === "playlist" && currentPlaylistId === Number(playlistId)) {
@@ -900,7 +948,7 @@ function renderPlaylistSongs(songIds, onComplete) {
     if (!songIds || songIds.length === 0) {
         song_list.classList.add("empty");
         showEmpty();
-        if (onComplete) onComplete(); // ✅ Ejecutar callback incluso si está vacío
+        if (onComplete) onComplete(); // Ejecutar callback incluso si está vacío
         return;
     }
 
@@ -929,7 +977,7 @@ function renderPlaylistSongs(songIds, onComplete) {
 
         if (songMap.size === 0) {
             showEmpty();
-            if (onComplete) onComplete(); // ✅ Ejecutar callback
+            if (onComplete) onComplete(); // Ejecutar callback
             return;
         }
 
@@ -960,7 +1008,7 @@ function renderPlaylistSongs(songIds, onComplete) {
                     
         activeItemEvents(".playlist-song-list .song-item");
         
-        // ✅ Ejecutar callback después de agregar eventos
+        // Ejecutar callback después de agregar eventos
         if (onComplete) onComplete();
     }
 
@@ -1476,6 +1524,26 @@ function clearSongCard() {
     toggleFooter(false);
 }
 
+function clearPlaylistView(deletedPlaylistId) {
+
+    // Si la playlist borrada es la que está abierta
+    const playlistViewCard = document.querySelector(".playlist-view-card");
+    const currentViewId = playlistViewCard ? Number(playlistViewCard.dataset.id) : null;
+
+    if (currentViewId === deletedPlaylistId) {
+        showSection("playlists"); // 👈 volver atrás
+    }
+
+    // Si la playlist borrada es la que se está reproduciendo
+    if (currentContext === "playlist" && currentPlaylistId === deletedPlaylistId) {
+
+        clearSongCard(); // 👈 limpias todo como hiciste antes
+
+        currentPlaylistId = null;
+    }
+
+}
+
 function adjustFooterWidth() {
     const footer = document.querySelector('footer');
     const main = document.querySelector('main');
@@ -1655,6 +1723,12 @@ const btnPlayPlaylist = document.querySelector(".playlist-view-play");
 btnPlayPlaylist.addEventListener("click", () => {
     const playlistViewCard = document.querySelector(".playlist-view-card");
     const viewPlaylistId = Number(playlistViewCard.dataset.id);
+
+    const songPlaylists = document.querySelectorAll(".playlist-song-list .song-item"); 
+
+    if (songPlaylists.length === 0) {
+        return;
+    }
     
     // Verificar si ya está reproduciendo ESTA playlist específica
     const isPlayingThisPlaylist = currentContext === "playlist" && 
@@ -1687,7 +1761,7 @@ btnPlayPlaylist.addEventListener("click", () => {
                                             <path d="M7 5h3v14H7zM14 5h3v14h-3z"/>
                                         </svg>`
 
-        // ✅ Reconstruir la cola desde los items del DOM (igual que buildCurrentPlaylist)
+        // Reconstruir la cola desde los items del DOM (igual que buildCurrentPlaylist)
         currentContext = "playlist";
         currentPlaylistId = viewPlaylistId;
         
@@ -1711,3 +1785,153 @@ btnPlayPlaylist.addEventListener("click", () => {
         };
     }
 });
+
+let lyricsActive = false;
+let letras = [];
+let indiceActual = 0;
+let itemsLetras = [];
+
+const lyrics = document.getElementById("lyrics");
+lyrics.style.display = "none";
+
+btnLyrics.addEventListener("click", () => {
+
+    btnLyrics.classList.toggle('active');
+    lyricsActive = !lyricsActive;
+    if (lyricsActive) {
+        songCard.style.display = "none";
+        lyrics.style.display = "flex";
+    } else {
+        songCard.style.display = "flex"
+        lyrics.style.display = "none";
+    }
+});
+
+async function obtenerLetra(trackName, trackArtist) {
+  try {
+    const url = `https://lrclib.net/api/get?track_name=${encodeURIComponent(trackName)}&artist_name=${encodeURIComponent(trackArtist)}`;
+
+    const res = await fetch(url);
+
+    if (!res.ok) {
+        letras = [];
+        mostrarSinLetras();
+        return;
+    }
+
+    const data = await res.json();
+
+    if (!data.syncedLyrics) {
+        letras = [];
+        mostrarSinLetras();
+        return;
+    }
+
+    letras = parseLRC(data.syncedLyrics);
+    indiceActual = 0; // 🔥 reset al cargar nueva canción
+
+    mostrarLetras(letras); // 👈 SOLO aquí
+
+  } catch (error) {
+    console.error("Error:", error.message);
+  }
+}
+
+function parseLRC(lrc) {
+  return lrc.split("\n").map(line => {
+    const match = line.match(/\[(\d+):(\d+(?:\.\d+)?)\](.*)/);
+    if (!match) return null;
+
+    return {
+      tiempo: parseFloat(match[1]) * 60 + parseFloat(match[2]), // ✅ parseFloat en ambos
+      texto: match[3].trim()
+    };
+  }).filter(Boolean);
+}
+
+function syncLyrics(tiempoActual) {
+    if (!letras.length) return;
+
+    // Buscar la línea correcta basada en el tiempo actual
+    let nuevoIndice = indiceActual;
+
+    // Avanzar si el tiempo actual ya pasó la siguiente línea
+    while (nuevoIndice < letras.length - 1 && 
+           tiempoActual >= letras[nuevoIndice + 1].tiempo) {
+        nuevoIndice++;
+    }
+
+    // Retroceder si el tiempo actual está antes de la línea actual
+    while (nuevoIndice > 0 && 
+           tiempoActual < letras[nuevoIndice].tiempo) {
+        nuevoIndice--;
+    }
+
+    // Solo actualizar si cambió
+    if (nuevoIndice !== indiceActual) {
+        indiceActual = nuevoIndice;
+        actualizarLineaActiva();
+    }
+}
+
+function actualizarLineaActiva() {
+    itemsLetras.forEach(el => el.classList.remove("activo"));
+
+    if (itemsLetras[indiceActual]) {
+        const active = itemsLetras[indiceActual];
+
+        active.classList.add("activo");
+
+        active.scrollIntoView({
+            behavior: "smooth",
+            block: "center"
+        });
+    }
+}
+
+function mostrarSinLetras() {
+    const div = document.getElementById("lyrics");
+
+    div.innerHTML = `
+        <div class="no-lyrics">
+            <div class="no-lyrics-icon">
+                <svg viewBox="0 0 24 24" fill="none">
+                    <path d="M9 18C9 19.1046 7.88071 20 6.5 20C5.11929 20 4 19.1046 4 18C4 16.8954 5.11929 16 6.5 16C7.88071 16 9 16.8954 9 18ZM9 18V6L20 4V16" stroke="currentColor" stroke-width="1.5"/>
+                    <path d="M20 16C20 17.1046 18.8807 18 17.5 18C16.1193 18 15 17.1046 15 16C15 14.8954 16.1193 14 17.5 14C18.8807 14 20 14.8954 20 16Z" stroke="currentColor" stroke-width="1.5"/>
+                </svg>
+            </div>
+            <p class="no-lyrics-title">Sin letras disponibles</p>
+            <p class="no-lyrics-subtitle">No encontramos letras sincronizadas para esta canción.</p>
+        </div>
+    `;
+
+    itemsLetras = [];
+}
+
+function mostrarLetras(letras) {
+    const div = document.getElementById("lyrics");
+    div.innerHTML = "";
+
+    letras.forEach((l, index) => {
+        const li = document.createElement("p");
+        li.textContent = l.texto;
+
+        div.appendChild(li);
+
+        // 👉 animación progresiva
+        setTimeout(() => {
+            li.classList.add("show");
+        }, index * 30);
+    });
+
+    itemsLetras = document.querySelectorAll("#lyrics p");
+}
+
+function resetLyrics() {
+    letras = [];
+    indiceActual = 0;
+    itemsLetras = [];
+
+    const div = document.getElementById("lyrics");
+    div.innerHTML = ""; // limpia lo anterior
+}

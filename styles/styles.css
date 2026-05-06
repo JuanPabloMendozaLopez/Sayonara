@@ -369,17 +369,16 @@ input[type=range]:hover::-moz-range-thumb {
     text-overflow: ellipsis;
 }
 
-.song-list, .favorite-list, .playlist-list {
+.song-list, .favorite-list {
     display: flex;
     width: 100%;
     flex-direction: column;
 }
-
 .playlist-list {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-    gap: 30px;
-    justify-items: stretch;
+    display: flex;
+    gap: 20px;
+    overflow: hidden;
+    flex-wrap: wrap;
 }
 
 .playlist-list.empty {
@@ -533,6 +532,48 @@ input[type=range]:hover::-moz-range-thumb {
     border: none;
     color: var(--color-button);
     transition: transform 0.2s ease-in-out, color 0.2s;
+
+}
+
+.playlist-info button {
+
+    width: 25px;
+    height: 25px;
+    background-color: transparent;
+    border: none;
+    color: var(--color-button);
+    transition: transform 0.2s ease-in-out, color 0.2s;
+
+}
+
+.playlist-info button:hover {
+
+    transform: scale(1.1);
+    color: var(--color-button-hover);
+
+}
+
+.playlist-info button svg {
+
+    width: 100%;
+    height: 100%;
+
+}
+
+.playlist-item:hover button {
+    opacity: 1;
+    cursor: pointer;
+}
+
+.playlist-item:hover button:hover {
+    color: var(--color-button-hover-alt);
+}
+
+
+.playlist-info button {
+
+    opacity: 0;
+    cursor: default;
 
 }
 
@@ -1214,8 +1255,7 @@ form .form-group {
 /* información */
 .playlist-info {
     display: flex;
-    flex-direction: column;
-    gap: 4px;
+    justify-content: space-between;
 }
 
 .playlist-name {
@@ -1228,4 +1268,171 @@ form .form-group {
     margin: 0;
     font-size: 13px;
     color: #b3b3b3;
+}
+.btn-lyrics {
+  position: fixed;
+  top: 4rem;
+  right: 4rem;
+  color: white; /* 👈 siempre blanco, funciona sobre cualquier fondo */
+  border-radius: 50%;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(0, 0, 0, 0.35);  /* 👈 negro semitransparente, neutro sobre cualquier color */
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0px 4px 16px rgba(0, 0, 0, 0.4);
+  transition: color 0.3s ease;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.btn-lyrics::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: linear-gradient(to bottom, var(--color-accent), #8b11c0);
+  transform: scale(0);
+  transition: transform 0.35s cubic-bezier(0.34, 1.2, 0.64, 1);
+  z-index: 0;
+}
+
+.btn-lyrics svg {
+  position: relative;
+  z-index: 1;
+  transition: color 0.3s ease;
+}
+
+.btn-lyrics:hover::before {
+  transform: scale(1);
+}
+
+.btn-lyrics:hover {
+  cursor: pointer;
+}
+
+.btn-lyrics.active::before {
+  transform: scale(1);
+}
+
+.btn-lyrics.active {
+  color: white;
+}
+
+/* color ya es white, no cambia en hover */
+#inicio {
+
+    position: relative;
+
+}
+
+/* Contenedor de letras */
+#lyrics {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 40px;
+    padding-top: 6rem;
+    padding-bottom: 6rem;
+    gap: 12px;
+}
+
+/* Cada línea */
+#lyrics > p {
+    margin: 0;
+    font-size: 2.1rem;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.4);
+    text-align: left;
+    max-width: 500px;
+    transition: all 0.3s ease;
+    opacity: 0;
+    transform: translateY(10px);
+}
+
+/* Animación de entrada */
+#lyrics > p.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Línea activa 🔥 */
+#lyrics > p.activo {
+    color: #ffffff;
+
+    font-weight: 700;
+}
+
+#lyrics > p:first-child {
+    display: none;
+}
+
+
+.no-lyrics {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    
+    height: 100%;
+    width: 100%;
+
+    text-align: center;
+    gap: 10px;
+
+    opacity: 0.85;
+    animation: fadeIn 0.4s ease;
+}
+
+.no-lyrics > p {
+    font-size: 18px;
+}
+
+.no-lyrics-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 90px;
+    height: 90px;
+
+    border-radius: 50%;
+
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(6px);
+
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.05);
+
+    transition: 0.3s;
+}
+
+.no-lyrics-icon svg {
+    width: 45px;
+    height: 45px;
+    color: #bbb;
+}
+
+.no-lyrics-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #fff;
+}
+
+.no-lyrics-subtitle {
+    font-size: 13px;
+    color: #aaa;
+    max-width: 220px;
+    line-height: 1.4;
+}
+
+/* ✨ Animación suave */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 0.85;
+        transform: translateY(0);
+    }
 }
