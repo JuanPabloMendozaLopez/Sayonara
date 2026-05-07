@@ -776,7 +776,7 @@ form.addEventListener("submit", (e) => {
 
     }
 
-    req.oncomplete = () => {
+    tx.oncomplete = () => {
 
         playlistName.value = "";
 
@@ -803,6 +803,8 @@ function loadSavedPlaylists() {
         const playlists = req.result;
 
         if (playlists.length === 0) {
+
+            console.log("holaaaa");
 
             playlist_list.classList.add("empty");
 
@@ -1000,6 +1002,21 @@ function renderPlaylistSongs(songIds, onComplete) {
                         <p class="song-title">${song.title}</p>
                         <p class="song-artist">${song.artist}</p>
                     </div>
+                </div>
+                <div class="song-controls">
+                    <p>${song.duration}</p>
+                    <button class="btn-delete">
+                        <svg width="800px" height="800px" viewBox="0 0 512 512" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+                            <title>cancel</title>
+                            <g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+                                <g id="work-case" fill="currentColor" transform="translate(91.520000, 91.520000)">
+                                    <polygon id="Close" points="328.96 30.2933333 298.666667 1.42108547e-14 164.48 134.4 30.2933333 1.42108547e-14 1.42108547e-14 30.2933333 134.4 164.48 1.42108547e-14 298.666667 30.2933333 328.96 164.48 194.56 298.666667 328.96 328.96 298.666667 194.56 164.48">
+
+                        </polygon>
+                                </g>
+                            </g>
+                        </svg>
+                    </button>
                 </div>
             `;
 
@@ -1297,6 +1314,7 @@ function activeItemEvents(selector) {
 
         let isSongList = ".song-list .song-item" === selector;
         let isFavoriteList = ".favorite-list .song-item" === selector;
+        let isPlaylistList = ".playlist-song-list .song-item" === selector;
 
         picture_content.addEventListener("click", () => {
             // Determinar el contexto de este item
@@ -1336,50 +1354,92 @@ function activeItemEvents(selector) {
             }
         });
 
-        if (isSongList) {
+        if (isSongList || isPlaylistList) {
 
             btn_delete.addEventListener("click", () => {
-                const tx = db.transaction(["songs", "favorites", "playlists"], "readwrite");
-                const songStore = tx.objectStore("songs");
-                const favoriteStore = tx.objectStore("favorites");
-                const playlistStore = tx.objectStore("playlists");
-                const songReq = songStore.delete(id);
 
-                songReq.onsuccess = () => {
+                if (isSongList) {
 
-                    console.log("Cancion eliminada");
+                    const tx = db.transaction(["songs", "favorites", "playlists"], "readwrite");
+                    const songStore = tx.objectStore("songs");
+                    const favoriteStore = tx.objectStore("favorites");
+                    const playlistStore = tx.objectStore("playlists");
+                    const songReq = songStore.delete(id);
 
-                    favoriteStore.delete(id);
+                    songReq.onsuccess = () => {
 
-                    const req = playlistStore.getAll();
+                        console.log("Cancion eliminada");
 
-                     req.onsuccess = () => {
-                        req.result.forEach(pl => {
+                        favoriteStore.delete(id);
 
-                            pl.songsId = pl.songsId.filter(song => song !== Number(id));
+                        const req = playlistStore.getAll();
 
-                            playlistStore.put(pl);
+                        req.onsuccess = () => {
+                            req.result.forEach(pl => {
 
-                        });
+                                pl.songsId = pl.songsId.filter(song => song !== Number(id));
+
+                                playlistStore.put(pl);
+
+                            });
+                        };
+
+                        currentPlaylist = currentPlaylist.filter(item => item !== id);
+
+                        if (currentSongId === id) {
+                            clearSongCard();
+                        }
+                        
+                    }
+
+                    songReq.onerror = () => {
+                        console.log("Error al eliminar la canción");
                     };
 
-                    currentPlaylist = currentPlaylist.filter(item => item !== id);
-
-                    if (currentSongId === id) {
-                        clearSongCard();
+                    tx.oncomplete = () => {
+                        loadSavedSongs();
+                        loadFavoriteSongs();
+                        loadSavedPlaylists();
                     }
                     
+                } else {
+
+                    const playlistViewCard = document.querySelector(".playlist-view-card");
+                    let playlistId = Number(playlistViewCard.dataset.id);
+
+                    const tx = db.transaction("playlists", "readwrite");
+                    const playlistStore = tx.objectStore("playlists");
+                    const req = playlistStore.get(playlistId);
+
+                    req.onsuccess = () => {
+
+                        let pl = req.result;
+
+                        pl.songsId = pl.songsId.filter(song => song !== Number(id));
+
+                        playlistStore.put(pl);
+
+                        if (currentSongId === id) {
+                            clearSongCard();
+                        }
+
+
+                    }
+
+                    req.onerror = () => {
+                        console.log("Error al remover la canción de la playlist");
+                    };
+
+                    tx.oncomplete = () => {
+
+                        openPlaylist(playlistId);
+                        loadSavedPlaylists();
+
+                    }
+
                 }
 
-                songReq.onerror = () => {
-                    console.log("Error al eliminar la canción");
-                };
-
-                tx.oncomplete = () => {
-                    loadSavedSongs();
-                    loadFavoriteSongs();
-                    loadSavedPlaylists();
-                }
+                
 
             });
             

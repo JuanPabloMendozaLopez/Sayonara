@@ -383,6 +383,7 @@ input[type=range]:hover::-moz-range-thumb {
 
 .playlist-list.empty {
     display: flex;
+    width: 100%;
     justify-content: center;
     align-items: center;
 }
